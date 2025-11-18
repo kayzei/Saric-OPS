@@ -1,0 +1,7 @@
+{
+  "name": "Saric Logistics Ops",
+  "description": "Comprehensive logistics tracking, asset management, and real-time operations dashboard.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
