@@ -68,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         </NavLink>
         <NavLink to="/drivers" className={navClasses}>
             <Users size={18} />
-            <span>HR & Compliance</span>
+            <span>Drivers & HR</span>
         </NavLink>
       </nav>
 

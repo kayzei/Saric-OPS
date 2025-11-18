@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Driver, FatigueStatus, DriverMessage } from '../types';
 import { INITIAL_DRIVERS } from '../constants';
 import { Users, Clock, AlertTriangle, Activity, Award, MessageCircle, Send, X, Radio } from 'lucide-react';
@@ -8,6 +8,14 @@ const Drivers: React.FC = () => {
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [selectedDriverForChat, setSelectedDriverForChat] = useState<Driver | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    if (selectedDriverForChat && chatEndRef.current) {
+        chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selectedDriverForChat?.messages, selectedDriverForChat]);
 
   const getFatigueColor = (status: FatigueStatus) => {
     switch (status) {
@@ -38,16 +46,19 @@ const Drivers: React.FC = () => {
         type: 'General'
     };
 
-    // Update local state to show message immediately
-    setDrivers(prev => prev.map(d => {
+    // Update local state to show message immediately in the list and the modal
+    const updatedDrivers = drivers.map(d => {
         if (d.id === selectedDriverForChat.id) {
             return { ...d, messages: [...(d.messages || []), newMsg] };
         }
         return d;
-    }));
+    });
+
+    setDrivers(updatedDrivers);
     
-    // Also update the currently selected driver object to reflect in modal
-    setSelectedDriverForChat(prev => prev ? { ...prev, messages: [...(prev.messages || []), newMsg] } : null);
+    // Update the selected driver instance to trigger re-render of modal content
+    const updatedSelectedDriver = updatedDrivers.find(d => d.id === selectedDriverForChat.id) || null;
+    setSelectedDriverForChat(updatedSelectedDriver);
 
     setNewMessage('');
     toast.success('Message sent to driver');
@@ -176,7 +187,7 @@ const Drivers: React.FC = () => {
         {/* Messaging Modal */}
         {selectedDriverForChat && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col h-[600px]">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col h-[80vh] max-h-[600px]">
                     {/* Header */}
                     <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <div className="flex items-center gap-3">
@@ -185,4 +196,63 @@ const Drivers: React.FC = () => {
                             </div>
                             <div>
                                 <h3 className="font-bold text-slate-800">{selectedDriverForChat.name}</h3>
-                                <p className="text-xs text-slate-500 font
+                                <p className="text-xs text-slate-500 font-mono">{selectedDriverForChat.id}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setSelectedDriverForChat(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                            <X size={20} className="text-slate-500" />
+                        </button>
+                    </div>
+
+                    {/* Chat Area */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+                        {selectedDriverForChat.messages && selectedDriverForChat.messages.length > 0 ? (
+                            selectedDriverForChat.messages.map((msg) => (
+                                <div key={msg.id} className={`flex ${msg.sender === 'HR' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                                        msg.sender === 'HR' 
+                                        ? 'bg-indigo-600 text-white rounded-br-none' 
+                                        : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none shadow-sm'
+                                    }`}>
+                                        <p>{msg.content}</p>
+                                        <p className={`text-[10px] mt-1 text-right ${msg.sender === 'HR' ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                            {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                <MessageCircle size={32} className="mb-2 opacity-50" />
+                                <p className="text-sm">No message history</p>
+                            </div>
+                        )}
+                        <div ref={chatEndRef} />
+                    </div>
+
+                    {/* Input Area */}
+                    <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-100 bg-white">
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                placeholder="Type a message to driver..."
+                                className="flex-1 border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                            />
+                            <button 
+                                type="submit"
+                                className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                            >
+                                <Send size={20} />
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+    </div>
+  );
+};
+
+export default Drivers;
