@@ -382,7 +382,7 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
   { id: 'SAR-8821', origin: 'Lusaka, ZM', destination: 'Ndola, ZM', client: 'Mopani Copper', eta: '3 hrs', status: 'In Transit', assetId: 'SRC-104' },
   { id: 'SAR-9923', origin: 'Solwezi, ZM', destination: 'Chingola, ZM', client: 'FQM', eta: 'Pending', status: 'Pending', assetId: 'SRC-205' },
   { id: 'SAR-4141', origin: 'Chirundu, ZM', destination: 'Lusaka, ZM', client: 'Trade Kings', eta: '5 hrs', status: 'In Transit', assetId: 'SRC-330' },
-  { id: 'SAR-1010', origin: 'Mpika, ZM', destination: 'Nakonde, ZM', client: 'Government', eta: 'Delayed', status: 'Delayed', assetId: 'SRC-410' },
+  { id: 'SAR-1010', origin: 'Mpika, ZM', destination: 'Nakonde, ZM', client: 'Government', eta: 'Delayed', status: 'Delayed', assetId: 'SRC-410', delayReason: 'Border clearance bottleneck at Nakonde' },
   { id: 'SAR-2022', origin: 'Lusaka, ZM', destination: 'Mongu, ZM', client: 'DMMU', eta: '8 hrs', status: 'In Transit', assetId: 'SRC-702' },
   { id: 'SAR-SHT-101', origin: 'KKIA Airport', destination: 'Radisson Blu', client: 'Emirates Crew', eta: '30 mins', status: 'In Transit', assetId: 'SRC-SHT-01' },
   // Historic / Delivered

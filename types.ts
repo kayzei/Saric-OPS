@@ -105,6 +105,7 @@ export interface Shipment {
   eta: string;
   status: 'Pending' | 'In Transit' | 'Delivered' | 'Delayed';
   assetId?: string;
+  delayReason?: string; // Reason for delay if status is Delayed
 }
 
 export interface AuditEntry {

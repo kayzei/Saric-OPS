@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, MapPin, Clock, ArrowRight, Truck, History, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Package, MapPin, Clock, ArrowRight, Truck, History, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { INITIAL_SHIPMENTS } from '../constants';
 
 const Shipments: React.FC = () => {
@@ -124,7 +124,7 @@ const Shipments: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
                 {historyShipments.length > 0 ? historyShipments.map((shipment) => (
-                     <tr key={shipment.id} className="hover:bg-slate-50 transition-colors group opacity-80 hover:opacity-100">
+                     <tr key={shipment.id} className="hover:bg-slate-50 transition-colors group/row opacity-80 hover:opacity-100">
                         <td className="px-6 py-4 font-mono font-medium text-slate-500">
                             {shipment.id}
                         </td>
@@ -136,10 +136,18 @@ const Shipments: React.FC = () => {
                             </div>
                         </td>
                         <td className="px-6 py-4 text-slate-500">{shipment.client}</td>
-                        <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(shipment.status)}`}>
+                        <td className="px-6 py-4 relative group/tooltip">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(shipment.status)} cursor-help flex items-center gap-1 w-fit`}>
                                 {shipment.status}
+                                {shipment.status === 'Delayed' && <Info size={10} />}
                             </span>
+                            {shipment.status === 'Delayed' && shipment.delayReason && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
+                                    <p className="font-bold mb-1 text-red-200">Delay Reason:</p>
+                                    {shipment.delayReason}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                                </div>
+                            )}
                         </td>
                         <td className="px-6 py-4">
                             {shipment.status === 'Delivered' ? (
