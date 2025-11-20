@@ -20,6 +20,14 @@ export interface Coordinates {
   lng: number;
 }
 
+export interface Geofence {
+    id: string;
+    name: string;
+    type: 'Hub' | 'Border' | 'Site' | 'Restricted';
+    color: string;
+    coordinates: [number, number][]; // Array of [lat, lng] arrays
+}
+
 export interface AppNotification {
   id: string;
   title: string;

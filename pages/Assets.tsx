@@ -25,11 +25,50 @@ const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
 
   const filteredAssets = activeTab === 'All' ? assets : assets.filter(a => a.category === activeTab);
 
-  const getStatusIcon = (status: AssetStatus) => {
+  const getStatusBadge = (status: AssetStatus) => {
+    const baseClasses = "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 w-fit border shadow-sm transition-all";
+    
     switch (status) {
-      case AssetStatus.MOVING: return <CheckCircle className="text-green-500" size={16} />;
-      case AssetStatus.BREAKDOWN: return <AlertCircle className="text-red-500" size={16} />;
-      default: return <Clock className="text-yellow-500" size={16} />;
+      case AssetStatus.MOVING:
+        return (
+          <div className={`${baseClasses} bg-green-50 text-green-700 border-green-200`}>
+             <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            Moving
+          </div>
+        );
+      case AssetStatus.IDLE:
+        return (
+            <div className={`${baseClasses} bg-amber-50 text-amber-700 border-amber-200`}>
+                 <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                 Idle
+            </div>
+        );
+      case AssetStatus.STOPPED:
+        return (
+            <div className={`${baseClasses} bg-slate-50 text-slate-500 border-slate-200`}>
+                 <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                 Stopped
+            </div>
+        );
+      case AssetStatus.BREAKDOWN:
+        return (
+            <div className={`${baseClasses} bg-red-50 text-red-700 border-red-200 animate-pulse ring-1 ring-red-200`}>
+                 <AlertCircle size={12} className="text-red-600" />
+                 Breakdown
+            </div>
+        );
+      case AssetStatus.MAINTENANCE:
+         return (
+            <div className={`${baseClasses} bg-blue-50 text-blue-700 border-blue-200`}>
+                 <Wrench size={12} />
+                 Maint.
+            </div>
+        );
+      default:
+        return <span className="text-slate-500">{status}</span>;
     }
   };
 
@@ -115,15 +154,7 @@ const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
                     <td className="px-6 py-4 font-medium">{asset.name}</td>
                     <td className="px-6 py-4">{asset.driver}</td>
                     <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                            {getStatusIcon(asset.status)}
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                asset.status === AssetStatus.BREAKDOWN ? 'bg-red-100 text-red-700' : 
-                                asset.status === AssetStatus.MOVING ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                                {asset.status}
-                            </span>
-                        </div>
+                        {getStatusBadge(asset.status)}
                     </td>
                     <td className="px-6 py-4">
                         <div className="w-full bg-slate-200 rounded-full h-1.5 max-w-[80px] mb-1">

@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Tooltip as LeafletTooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { Asset, AssetStatus, AssetCategory } from '../types';
-import { Truck, AlertOctagon, Thermometer, Bus, Eye, EyeOff } from 'lucide-react';
+import { Truck, AlertOctagon, Thermometer, Bus, Eye, EyeOff, Layers } from 'lucide-react';
+import { INITIAL_GEOFENCES } from '../constants';
 
-// Fix Leaflet default icon issue in React using CDN URLs directly instead of imports
+// Fix Leaflet default icon issue
 const DefaultIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -73,6 +74,7 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
       'Construction': true,
       'Support': true
   });
+  const [showGeofences, setShowGeofences] = useState(true);
 
   const toggleFilter = (category: AssetCategory) => {
       setFilters(prev => ({ ...prev, [category]: !prev[category] }));
@@ -90,7 +92,7 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
   return (
     <div className="h-full relative z-0">
         {/* HUD Panel */}
-        <div className="absolute top-4 left-4 z-[1000] bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-2xl max-w-xs border border-slate-200">
+        <div className="absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-2xl max-w-xs border border-slate-200">
             <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm uppercase tracking-wider mb-3">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                 Live Operations Center
@@ -107,13 +109,22 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
                  </div>
             </div>
 
-            <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Layer Visibility</p>
+            <div className="space-y-1 border-t border-slate-100 pt-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Layer Controls</p>
+                
+                <button 
+                    onClick={() => setShowGeofences(!showGeofences)}
+                    className={`flex items-center justify-between w-full p-2 rounded text-xs font-medium transition-colors mb-2 ${showGeofences ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-400'}`}
+                >
+                    <span className="flex items-center gap-2"><Layers size={14} /> Geofences</span>
+                    {showGeofences ? <Eye size={14} /> : <EyeOff size={14} />}
+                </button>
+
                 {(Object.keys(filters) as AssetCategory[]).map(cat => (
                     <button 
                         key={cat}
                         onClick={() => toggleFilter(cat)}
-                        className={`flex items-center justify-between w-full p-2 rounded text-xs font-medium transition-colors ${filters[cat] ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-400'}`}
+                        className={`flex items-center justify-between w-full p-2 rounded text-xs font-medium transition-colors ${filters[cat] ? 'bg-slate-100 text-slate-700' : 'bg-slate-50 text-slate-400 opacity-60'}`}
                     >
                         <span>{cat}</span>
                         {filters[cat] ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -128,6 +139,19 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapFocus assets={assets} />
+            
+            {/* Geofences Layer */}
+            {showGeofences && INITIAL_GEOFENCES.map(geo => (
+                <Polygon 
+                    key={geo.id} 
+                    positions={geo.coordinates}
+                    pathOptions={{ color: geo.color, fillColor: geo.color, fillOpacity: 0.2, weight: 2 }}
+                >
+                    <LeafletTooltip sticky>{geo.name}</LeafletTooltip>
+                </Polygon>
+            ))}
+
+            {/* Assets Layer */}
             {visibleAssets.map((asset) => (
                 <Marker 
                     key={asset.id} 
