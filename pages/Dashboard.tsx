@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Asset, AssetStatus } from '../types';
 import { generateFleetReport } from '../services/geminiService';
-import { Brain, AlertTriangle, Fuel, Activity, TrendingUp, Leaf, DollarSign, Bus, Truck, Construction } from 'lucide-react';
+import { Brain, AlertTriangle, Fuel, Activity, TrendingUp, Leaf, DollarSign, Bus, Truck, Construction, Megaphone } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { LIVE_TICKER_DATA } from '../constants';
 
 interface DashboardProps {
   assets: Asset[];
@@ -40,8 +41,32 @@ const Dashboard: React.FC<DashboardProps> = ({ assets }) => {
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-ZM', { notation: "compact", compactDisplay: "short", style: 'currency', currency: 'ZMW' }).format(val);
 
   return (
-    <div className="p-8 bg-slate-50/50 min-h-full">
-      <header className="mb-8 flex justify-between items-center">
+    <div className="p-8 bg-slate-50/50 min-h-full flex flex-col gap-8">
+      {/* Operations Ticker */}
+      <div className="bg-slate-900 text-white rounded-lg overflow-hidden flex items-center shadow-lg">
+          <div className="bg-saric-600 px-4 py-2 flex items-center gap-2 z-10 shrink-0 font-bold text-sm uppercase tracking-wider">
+              <Megaphone size={16} className="animate-pulse" />
+              <span>Live Ops</span>
+          </div>
+          <div className="flex-1 overflow-hidden relative h-9">
+              <div className="absolute top-0 left-0 whitespace-nowrap animate-[marquee_20s_linear_infinite] flex items-center h-full">
+                  {LIVE_TICKER_DATA.map((item, index) => (
+                      <span key={index} className="mx-8 text-xs md:text-sm text-slate-300 flex items-center">
+                          <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-2"></span>
+                          {item}
+                      </span>
+                  ))}
+              </div>
+          </div>
+          <style>{`
+            @keyframes marquee {
+                0% { transform: translateX(100%); }
+                100% { transform: translateX(-100%); }
+            }
+          `}</style>
+      </div>
+
+      <header className="flex justify-between items-center">
         <div>
             <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Executive Dashboard</h1>
             <p className="text-slate-500 mt-1">Overview of financial performance, fleet health, and ESG metrics.</p>
@@ -57,25 +82,27 @@ const Dashboard: React.FC<DashboardProps> = ({ assets }) => {
                 className="flex items-center space-x-2 bg-gradient-to-r from-indigo-900 to-indigo-700 text-white px-6 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
             >
                 <Brain size={18} />
-                <span>{loadingAi ? 'Generating Insights...' : 'AI Strategic Insight'}</span>
+                <span>{loadingAi ? 'Analyzing...' : 'AI Strategic Insight'}</span>
             </button>
         </div>
       </header>
 
       {/* AI Insight Card */}
       {aiReport && (
-        <div className="mb-8 bg-gradient-to-r from-indigo-50 to-white p-6 rounded-xl shadow-sm border border-indigo-100 animate-fade-in relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-            <div className="flex items-center space-x-2 mb-3 text-indigo-800">
-                <Brain size={20} />
-                <h3 className="font-bold text-lg">Gemini Operations Intelligence</h3>
+        <div className="bg-white rounded-xl shadow-md border border-indigo-100 overflow-hidden animate-fade-in flex flex-col md:flex-row">
+            <div className="bg-indigo-600 p-4 flex flex-col items-center justify-center text-white md:w-32 shrink-0">
+                <Brain size={32} className="mb-2" />
+                <span className="text-xs font-bold uppercase text-center tracking-widest">Gemini AI</span>
             </div>
-            <p className="text-slate-700 leading-relaxed text-sm md:text-base font-medium">{aiReport}</p>
+            <div className="p-6 flex-1">
+                 <h3 className="font-bold text-lg text-indigo-900 mb-2">Strategic Summary</h3>
+                 <p className="text-slate-700 leading-relaxed text-sm md:text-base">{aiReport}</p>
+            </div>
         </div>
       )}
 
       {/* Financial & ESG KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 group hover:border-indigo-200 transition-colors">
             <div className="flex justify-between items-start">
                 <div>
@@ -140,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({ assets }) => {
       </div>
 
       {/* Main Charts Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Financial Performance */}
         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
             <div className="flex justify-between items-center mb-6">

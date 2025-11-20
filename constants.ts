@@ -1,4 +1,4 @@
-import { Asset, AssetStatus, Shipment, Invoice, Driver, Project, FatigueStatus, MaintenanceRecord, Document, TelemetryPoint } from './types';
+import { Asset, AssetStatus, Shipment, Invoice, Driver, Project, FatigueStatus, MaintenanceRecord, Document, TelemetryPoint, Geofence } from './types';
 
 // Helper to generate mock telemetry
 const generateHistory = (baseSpeed: number): TelemetryPoint[] => {
@@ -15,6 +15,54 @@ const generateHistory = (baseSpeed: number): TelemetryPoint[] => {
     }
     return points;
 };
+
+// --- GEOFENCES ---
+export const INITIAL_GEOFENCES: Geofence[] = [
+    {
+        id: 'GEO-LUS-HUB',
+        name: 'Lusaka HQ & Logistics Hub',
+        type: 'Hub',
+        color: '#6366f1', // Indigo
+        coordinates: [
+            [-15.3875, 28.3228],
+            [-15.3875, 28.4500],
+            [-15.4500, 28.4500],
+            [-15.4500, 28.3228]
+        ]
+    },
+    {
+        id: 'GEO-NDL-IND',
+        name: 'Ndola Industrial Zone',
+        type: 'Site',
+        color: '#10b981', // Green
+        coordinates: [
+            [-12.9587, 28.6366],
+            [-12.9587, 28.7000],
+            [-13.0000, 28.7000],
+            [-13.0000, 28.6366]
+        ]
+    },
+    {
+        id: 'GEO-KAS-BRD',
+        name: 'Kasumbalesa Border Control',
+        type: 'Border',
+        color: '#f59e0b', // Amber
+        coordinates: [
+            [-11.9383, 27.8624],
+            [-11.9383, 27.9000],
+            [-11.9800, 27.9000],
+            [-11.9800, 27.8624]
+        ]
+    }
+];
+
+export const LIVE_TICKER_DATA = [
+    "⚠ Heavy Traffic reported at Chirundu Border Post (Queue: 4km)",
+    "✅ SRC-104 cleared customs at Nakonde.",
+    "☁ Weather Alert: Heavy rains expected in Copperbelt Province.",
+    "🔧 Workshop: Scheduled maintenance for Shuttle Fleet starts tomorrow.",
+    "📈 Fuel prices adjusted by ERB: +0.50 ZMW/L effective midnight."
+];
 
 // --- PROJECTS ---
 export const INITIAL_PROJECTS: Project[] = [
@@ -405,6 +453,8 @@ export const INITIAL_MAINTENANCE: MaintenanceRecord[] = [
     { id: 'MNT-2024-002', assetId: 'SRC-104', type: 'Routine', date: '2024-04-10', cost: 5000, mechanic: 'Ndola Service Center', notes: 'Oil change, filter replacement, brake check.', status: 'Completed' },
     { id: 'MNT-2024-003', assetId: 'SRC-205', type: 'Tire Change', date: '2024-05-25', cost: 12000, mechanic: 'Solwezi Hub', notes: 'Rear axle tires replacement due.', status: 'Scheduled' },
     { id: 'MNT-2024-004', assetId: 'SRC-601', type: 'Inspection', date: '2024-05-05', cost: 1500, mechanic: 'Kasumbalesa Mobile Unit', notes: 'Border crossing compliance check. Passed.', status: 'Completed' },
+    { id: 'MNT-2024-005', assetId: 'SRC-SHT-01', type: 'Routine', date: '2024-05-26', cost: 2500, mechanic: 'Lusaka Hub', notes: 'Standard A-Service.', status: 'Scheduled' },
+    { id: 'MNT-2024-006', assetId: 'SRC-330', type: 'Repair', date: '2024-05-28', cost: 8000, mechanic: 'Chirundu Mobile', notes: 'Suspension check required.', status: 'Scheduled' },
 ];
 
 // --- DOCUMENTS ---
