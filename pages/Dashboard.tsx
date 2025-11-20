@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Asset, AssetStatus } from '../types';
 import { generateFleetReport } from '../services/geminiService';
 import { Brain, AlertTriangle, Fuel, Activity, TrendingUp, Leaf, DollarSign, Bus, Truck, Construction } from 'lucide-react';
@@ -150,62 +149,24 @@ const Dashboard: React.FC<DashboardProps> = ({ assets }) => {
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-full"></div> Cost</span>
                 </div>
             </div>
-            <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={financialData}>
-                        <defs>
-                            <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#94a3b8'}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#94a3b8'}} tickFormatter={(val) => `${val/1000}k`} />
-                        <Tooltip 
-                            contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff'}} 
-                            itemStyle={{color: '#fff'}}
-                        />
-                        <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
-                        <Area type="monotone" dataKey="cost" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" name="Op. Cost" />
-                    </AreaChart>
-                </ResponsiveContainer>
+            <div className="h-80 flex items-center justify-center text-slate-500">
+                <div className="text-center">
+                    <p className="text-lg font-medium mb-2">Financial Data Summary</p>
+                    <p className="text-sm">Total Revenue: {formatCurrency(totalRevenue)}</p>
+                    <p className="text-sm">Total Cost: {formatCurrency(assets.reduce((acc, curr) => acc + (curr.costMonthToDate || 0), 0))}</p>
+                    <p className="text-sm">Net Profit: {formatCurrency(totalRevenue - assets.reduce((acc, curr) => acc + (curr.costMonthToDate || 0), 0))}</p>
+                </div>
             </div>
         </div>
 
         {/* Fleet Status Donut */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col">
             <h3 className="text-lg font-bold text-slate-800 mb-2">Real-time Status</h3>
-            <div className="flex-1 min-h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={statusData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={70}
-                            outerRadius={90}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {statusData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-                        <Tooltip />
-                        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-700 font-bold text-2xl">
-                            {assets.length}
-                        </text>
-                        <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-xs uppercase tracking-wider transform translate-y-4">
-                            Total Units
-                        </text>
-                    </PieChart>
-                </ResponsiveContainer>
+            <div className="flex-1 min-h-[250px] flex items-center justify-center">
+                <div className="text-center">
+                    <div className="text-4xl font-bold text-slate-800 mb-2">{assets.length}</div>
+                    <div className="text-sm text-slate-500 uppercase tracking-wider">Total Units</div>
+                </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-4">
                 {statusData.map((item) => (
