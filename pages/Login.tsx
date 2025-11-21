@@ -10,10 +10,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    // Optimization: Reduced login simulation time
     setTimeout(() => {
         setLoading(false);
         onLogin();
-    }, 1500);
+    }, 700);
   };
 
   return (

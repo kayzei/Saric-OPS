@@ -147,3 +147,54 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
                     <Crosshair size={14} /> Recenter Map
                 </button>
             </div>
+        </div>
+
+        <MapContainer center={[-13.1339, 27.8493]} zoom={7} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
+            <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapFocus assets={assets} shouldFocus={shouldFocus} setShouldFocus={setShouldFocus} />
+            
+            {/* Geofences Layer */}
+            {showGeofences && INITIAL_GEOFENCES.map(geo => (
+                <Polygon 
+                    key={geo.id} 
+                    positions={geo.coordinates}
+                    pathOptions={{ color: geo.color, fillColor: geo.color, fillOpacity: 0.2, weight: 2 }}
+                >
+                    <LeafletTooltip sticky>{geo.name}</LeafletTooltip>
+                </Polygon>
+            ))}
+
+            {/* Assets Layer */}
+            {visibleAssets.map((asset) => (
+                <Marker 
+                    key={asset.id} 
+                    position={[asset.location.lat, asset.location.lng]}
+                    icon={getIcon(asset)}
+                >
+                    <Popup>
+                        <div className="p-1 min-w-[160px]">
+                            <div className="flex items-center justify-between mb-2 border-b pb-1">
+                                <h3 className="font-bold text-slate-800">{asset.name}</h3>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full text-white ${asset.status === AssetStatus.BREAKDOWN ? 'bg-red-500' : 'bg-green-500'}`}>
+                                    {asset.status}
+                                </span>
+                            </div>
+                            <div className="space-y-1 text-xs text-slate-600">
+                                <p className="flex items-center gap-2 font-medium text-slate-800"><Truck size={12} /> {asset.driver}</p>
+                                <p className="flex items-center gap-2"><Navigation size={12} /> {asset.location.lat.toFixed(4)}, {asset.location.lng.toFixed(4)}</p>
+                                {asset.speed > 0 && <p className="text-indigo-600 font-mono">Speed: {Math.round(asset.speed)} km/h</p>}
+                                {asset.cargoType && <p className="text-slate-500 italic truncate">{asset.cargoType}</p>}
+                            </div>
+                        </div>
+                    </Popup>
+                </Marker>
+            ))}
+        </MapContainer>
+    </div>
+  );
+};
+
+export default LiveTracking;
