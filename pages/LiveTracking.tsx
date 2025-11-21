@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Tooltip as LeafletTooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { Asset, AssetStatus, AssetCategory } from '../types';
-import { Truck, AlertOctagon, Thermometer, Bus, Eye, EyeOff, Layers } from 'lucide-react';
+import { Truck, Eye, EyeOff, Layers, Crosshair, Navigation } from 'lucide-react';
 import { INITIAL_GEOFENCES } from '../constants';
 
 // Fix Leaflet default icon issue
@@ -56,14 +56,20 @@ interface LiveTrackingProps {
 }
 
 // Component to center map on bounds
-const MapFocus: React.FC<{ assets: Asset[] }> = ({ assets }) => {
+// We only run this when `shouldFocus` is true to prevent map jumping while user is panning
+const MapFocus: React.FC<{ assets: Asset[], shouldFocus: boolean, setShouldFocus: (v: boolean) => void }> = ({ assets, shouldFocus, setShouldFocus }) => {
     const map = useMap();
+    
     useEffect(() => {
-        if (assets.length > 0) {
+        if (shouldFocus && assets.length > 0) {
             const bounds = L.latLngBounds(assets.map(a => [a.location.lat, a.location.lng]));
-            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13, animate: true });
+                setShouldFocus(false); // Disable auto-focus after execution so user can pan freely
+            }
         }
-    }, [assets.length, map]);
+    }, [assets, map, shouldFocus, setShouldFocus]);
+    
     return null;
 };
 
@@ -75,6 +81,7 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
       'Support': true
   });
   const [showGeofences, setShowGeofences] = useState(true);
+  const [shouldFocus, setShouldFocus] = useState(true);
 
   const toggleFilter = (category: AssetCategory) => {
       setFilters(prev => ({ ...prev, [category]: !prev[category] }));
@@ -90,7 +97,7 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
   };
 
   return (
-    <div className="h-full relative z-0">
+    <div className="relative z-0" style={{ height: 'calc(100vh - 64px)' }}>
         {/* HUD Panel */}
         <div className="absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-2xl max-w-xs border border-slate-200">
             <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm uppercase tracking-wider mb-3">
@@ -131,55 +138,12 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets }) => {
                     </button>
                 ))}
             </div>
-        </div>
 
-        <MapContainer center={[-13.1339, 27.8493]} zoom={7} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
-            <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapFocus assets={assets} />
-            
-            {/* Geofences Layer */}
-            {showGeofences && INITIAL_GEOFENCES.map(geo => (
-                <Polygon 
-                    key={geo.id} 
-                    positions={geo.coordinates}
-                    pathOptions={{ color: geo.color, fillColor: geo.color, fillOpacity: 0.2, weight: 2 }}
+             <div className="border-t border-slate-100 pt-3 mt-2">
+                <button 
+                    onClick={() => setShouldFocus(true)}
+                    className="flex items-center justify-center gap-2 w-full p-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors shadow-md"
                 >
-                    <LeafletTooltip sticky>{geo.name}</LeafletTooltip>
-                </Polygon>
-            ))}
-
-            {/* Assets Layer */}
-            {visibleAssets.map((asset) => (
-                <Marker 
-                    key={asset.id} 
-                    position={[asset.location.lat, asset.location.lng]}
-                    icon={getIcon(asset)}
-                >
-                    <Popup>
-                        <div className="p-1 min-w-[150px]">
-                            <div className="flex items-center justify-between mb-2 border-b pb-1">
-                                <h3 className="font-bold text-slate-800">{asset.name}</h3>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full text-white ${asset.status === AssetStatus.BREAKDOWN ? 'bg-red-500' : 'bg-green-500'}`}>
-                                    {asset.status}
-                                </span>
-                            </div>
-                            <div className="space-y-1 text-xs text-slate-600">
-                                <p className="flex items-center gap-2"><Truck size={12} /> {asset.driver}</p>
-                                <p className="flex items-center gap-2"><Thermometer size={12} /> Fuel: {Math.round(asset.fuelLevel)}%</p>
-                                {asset.cargoType && <p>Cargo: {asset.cargoType}</p>}
-                                {asset.speed > 0 && <p>Speed: {asset.speed} km/h</p>}
-                                <p className="text-[10px] text-slate-400 mt-1">{asset.category}</p>
-                            </div>
-                        </div>
-                    </Popup>
-                </Marker>
-            ))}
-        </MapContainer>
-    </div>
-  );
-};
-
-export default LiveTracking;
+                    <Crosshair size={14} /> Recenter Map
+                </button>
+            </div>
