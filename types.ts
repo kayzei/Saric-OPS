@@ -9,10 +9,10 @@ export enum AssetStatus {
 }
 
 export enum FatigueStatus {
-  FRESH = 'FRESH',     // 0-4 hours
-  OK = 'OK',           // 4-8 hours
-  TIRED = 'TIRED',     // 8-10 hours
-  CRITICAL = 'CRITICAL' // >10 hours (Violation)
+  FRESH = 'FRESH',
+  OK = 'OK',
+  TIRED = 'TIRED',
+  CRITICAL = 'CRITICAL'
 }
 
 export interface Coordinates {
@@ -25,7 +25,7 @@ export interface Geofence {
     name: string;
     type: 'Hub' | 'Border' | 'Site' | 'Restricted';
     color: string;
-    coordinates: [number, number][]; // Array of [lat, lng] arrays
+    coordinates: [number, number][];
 }
 
 export interface AppNotification {
@@ -35,6 +35,57 @@ export interface AppNotification {
   type: 'info' | 'warning' | 'error' | 'success';
   timestamp: Date;
   read: boolean;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  minThreshold: number;
+  unit: string;
+  lastUpdated: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  clockIn: string;
+  clockOut?: string;
+  date: string;
+  mood: string;
+}
+
+export interface Profile {
+  id: string;
+  fullName: string;
+  role: 'admin' | 'user';
+  department: string;
+  avatarUrl?: string;
+  email?: string;
+  lastActive?: string;
+  currentTask?: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  authorName: string;
+  date: string;
+}
+
+export interface SecurityEvent {
+  id: string;
+  timestamp: string;
+  type: 'LOGIN_SUCCESS' | 'LOGIN_FAILURE' | 'MFA_CHALLENGE' | 'PASSWORD_CHANGE' | 'UNAUTHORIZED_ACCESS' | 'SENSITIVE_DATA_EXPORT';
+  severity: 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  userId: string;
+  ipAddress: string;
+  location: string;
+  userAgent: string;
+  details: string;
 }
 
 export interface DriverMessage {
@@ -52,12 +103,12 @@ export interface Driver {
   licenseNumber: string;
   assignedAssetId?: string;
   status: 'On Duty' | 'Off Duty' | 'Resting';
-  clockInTime?: string; // ISO String
+  clockInTime?: string;
   drivingHoursToday: number;
   lastRestBreak?: string;
   fatigueLevel: FatigueStatus;
-  complianceScore: number; // 0-100%
-  messages?: DriverMessage[]; // New field for communication history
+  complianceScore: number;
+  messages?: DriverMessage[];
 }
 
 export interface Project {
@@ -68,9 +119,9 @@ export interface Project {
   startDate: string;
   completionDate: string;
   status: 'Active' | 'Completed' | 'Paused' | 'Planning';
-  progress: number; // 0-100
-  budget: number; // ZMW
-  assetsAssigned: string[]; // Asset IDs
+  progress: number;
+  budget: number;
+  assetsAssigned: string[];
 }
 
 export type AssetCategory = 'Heavy Transport' | 'Shuttle' | 'Construction' | 'Support';
@@ -84,24 +135,24 @@ export interface TelemetryPoint {
 
 export interface Asset {
   id: string;
-  name: string; // e.g., Truck-001
-  category: AssetCategory; // New field to distinguish asset types
-  driver: string; // Display name
-  driverId?: string; // Link to Driver object
-  projectId?: string; // Link to Project
+  name: string;
+  category: AssetCategory;
+  driver: string;
+  driverId?: string;
+  projectId?: string;
   status: AssetStatus;
   location: Coordinates;
+  locationName?: string;
   destination: Coordinates;
   cargoType: string;
-  speed: number; // km/h
-  fuelLevel: number; // %
-  temperature?: number; // for reefer
+  speed: number;
+  fuelLevel: number;
+  temperature?: number;
   lastServiceDate?: string;
   nextServiceMileage?: number;
-  // Financials & Analytics
   revenueMonthToDate?: number;
   costMonthToDate?: number;
-  co2Emissions?: number; // kg
+  co2Emissions?: number;
   telemetryHistory?: TelemetryPoint[];
 }
 
@@ -113,7 +164,7 @@ export interface Shipment {
   eta: string;
   status: 'Pending' | 'In Transit' | 'Delivered' | 'Delayed';
   assetId?: string;
-  delayReason?: string; // Reason for delay if status is Delayed
+  delayReason?: string;
 }
 
 export interface AuditEntry {
@@ -123,16 +174,31 @@ export interface AuditEntry {
   details?: string;
 }
 
+export type ZraTaxType = 'A' | 'B' | 'C1' | 'C2';
+
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  hsCode?: string;
+  quantity: number;
+  unitPrice: number;
+  taxType: ZraTaxType;
+  total: number;
+}
+
 export interface Invoice {
   id: string;
   customer: string;
-  tpin: string; // Tax Payer Identification Number
+  tpin: string;
+  currency: 'ZMW' | 'USD';
+  exchangeRate?: number;
   date: string;
-  amount: number; // ZMW
-  vat: number; // ZMW (16%)
+  amount: number;
+  vat: number;
   status: 'Fiscalised' | 'Pending' | 'Failed';
-  zraSignature?: string; // The hash returned by ESD
-  items: string; // Summary of items
+  zraSignature?: string;
+  items: string;
+  lineItems: InvoiceItem[];
   auditTrail?: AuditEntry[];
 }
 
@@ -151,7 +217,7 @@ export interface Document {
   id: string;
   title: string;
   type: 'POD' | 'Invoice' | 'Bill of Lading' | 'Insurance' | 'Permit';
-  relatedId: string; // Shipment ID or Asset ID
+  relatedId: string;
   dateUploaded: string;
   size: string;
   url: string;

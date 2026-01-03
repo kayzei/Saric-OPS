@@ -1,18 +1,93 @@
-import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Asset, AssetStatus } from '../types';
-import { generateFleetReport } from '../services/geminiService';
-import { Brain, AlertTriangle, Fuel, Activity, TrendingUp, Leaf, DollarSign, Bus, Truck, Construction, Megaphone } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { Asset, AssetStatus, InventoryItem } from '../types';
+import { generateFleetReport, generateDriverBriefing } from '../services/geminiService';
+import { dbService } from '../services/dbService';
+import { Brain, AlertTriangle, Activity, Leaf, DollarSign, Truck, Megaphone, Calendar, Navigation, RefreshCw, Volume2, Play, Zap, Server, Shield, Package, ArrowRight, UserPlus, Users, ShieldCheck, Wifi } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { LIVE_TICKER_DATA } from '../constants';
+import { checkDatabaseHealth, supabase } from '../lib/supabaseClient';
 
 interface DashboardProps {
   assets: Asset[];
+  userRole: 'admin' | 'user';
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ assets }) => {
+const Dashboard: React.FC<DashboardProps> = ({ assets, userRole }) => {
+  const navigate = useNavigate();
   const [aiReport, setAiReport] = useState<string>('');
   const [loadingAi, setLoadingAi] = useState(false);
+  const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
+  const [tickerMessages, setTickerMessages] = useState<string[]>(LIVE_TICKER_DATA);
+  const [isBriefing, setIsBriefing] = useState(false);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    const verify = async () => {
+      const healthy = await checkDatabaseHealth();
+      setDbHealthy(healthy);
+      
+      if (healthy && dbService) {
+        try {
+          const announcements = await dbService.getAnnouncements();
+          if (announcements.length > 0) {
+            setTickerMessages(announcements.map(d => d.title));
+          }
+          const inv = await dbService.getInventory();
+          setInventory(inv);
+        } catch (e) {
+          console.error("Dashboard init error", e);
+        }
+      }
+    };
+    verify();
+
+    if (supabase) {
+        const channel = supabase.channel('announcements-feed')
+            .on('postgres_changes', { event: 'INSERT', table: 'announcements', schema: 'public' }, (payload) => {
+                setTickerMessages(prev => [payload.new.title, ...prev].slice(0, 5));
+                toast("New Command Directive Received", { icon: '📢' });
+            }).subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }
+  }, []);
+
+  const handleStartBriefing = async () => {
+    const myAsset = assets.find(a => a.id === 'SRC-104') || assets[0];
+    setIsBriefing(true);
+    toast.loading("Downloading Intelligence Brief...", { id: 'briefing' });
+    
+    try {
+      const audioData = await generateDriverBriefing('Operative', myAsset);
+      if (audioData) {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        const ctx = audioContextRef.current;
+        
+        const dataInt16 = new Int16Array(audioData.buffer);
+        const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
+        const channelData = buffer.getChannelData(0);
+        for (let i = 0; i < dataInt16.length; i++) {
+          channelData[i] = dataInt16[i] / 32768.0;
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start();
+        toast.success("Voice Briefing Active", { id: 'briefing' });
+        source.onended = () => setIsBriefing(false);
+      } else {
+        throw new Error("No audio generated");
+      }
+    } catch (e) {
+      toast.error("Vanguard Link Failure", { id: 'briefing' });
+      setIsBriefing(false);
+    }
+  };
 
   const statusData = [
     { name: 'Moving', value: assets.filter(a => a.status === AssetStatus.MOVING).length, color: '#10b981' },
@@ -21,10 +96,12 @@ const Dashboard: React.FC<DashboardProps> = ({ assets }) => {
     { name: 'Breakdown', value: assets.filter(a => a.status === AssetStatus.BREAKDOWN).length, color: '#ef4444' },
   ];
 
-  const financialData = assets.map(a => ({
-    name: a.id.split('-')[1],
-    revenue: a.revenueMonthToDate || 0,
-    cost: a.costMonthToDate || 0
+  const lowStockItems = inventory.filter(i => i.quantity <= i.minThreshold);
+
+  const efficiencyData = assets.slice(0, 6).map(a => ({
+    name: a.id,
+    efficiency: Math.round(70 + Math.random() * 30),
+    fuel: a.fuelLevel
   }));
 
   const totalRevenue = assets.reduce((acc, curr) => acc + (curr.revenueMonthToDate || 0), 0);
@@ -32,259 +109,309 @@ const Dashboard: React.FC<DashboardProps> = ({ assets }) => {
 
   const handleGenerateReport = async () => {
     setLoadingAi(true);
-    const report = await generateFleetReport(assets);
-    setAiReport(report);
-    setLoadingAi(false);
-    toast.success("AI Executive Summary Generated");
+    try {
+      const report = await generateFleetReport(assets);
+      setAiReport(report);
+      toast.success("Strategic Insight Loaded");
+    } catch (e) {
+      toast.error("AI Link Interrupted");
+    } finally {
+      setLoadingAi(false);
+    }
   };
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-ZM', { notation: "compact", compactDisplay: "short", style: 'currency', currency: 'ZMW' }).format(val);
+  const formatCurrency = (val: number) => 
+    new Intl.NumberFormat('en-ZM', { 
+      notation: "compact", 
+      compactDisplay: "short", 
+      style: 'currency', 
+      currency: 'ZMW' 
+    }).format(val);
+
+  if (userRole === 'user') {
+      const myAsset = assets.find(a => a.id === 'SRC-104') || assets[0];
+      return (
+        <div className="p-6 bg-slate-950 min-h-full text-slate-300">
+            <header className="mb-8 flex justify-between items-end">
+                <div>
+                  <h1 className="text-3xl font-black text-white tracking-tighter">OPERATIVE <span className="text-indigo-500">PORTAL</span></h1>
+                  <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Status: Cluster 01 Authorized</p>
+                </div>
+                <div className="flex gap-4">
+                  <div className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3">
+                    <Server size={18} className="text-kvi-gold" />
+                    <div className="text-left">
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Environment</p>
+                      <p className="text-xs font-bold text-white uppercase tracking-widest">Production</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleStartBriefing}
+                    disabled={isBriefing}
+                    className={`group flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isBriefing ? 'bg-indigo-600/50 text-indigo-200 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20'}`}
+                  >
+                    {isBriefing ? <Volume2 className="animate-pulse" size={18} /> : <Play size={18} />}
+                    <span>{isBriefing ? 'Briefing in Progress' : 'Start Vanguard Briefing'}</span>
+                  </button>
+                </div>
+            </header>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl relative">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><Zap size={120} /></div>
+                    <div className="bg-indigo-600 px-8 py-6 flex justify-between items-center text-white">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md"><Truck size={24} /></div>
+                            <div>
+                                <h3 className="font-black text-lg tracking-tight uppercase">Mission Live Stream</h3>
+                                <p className="text-xs text-indigo-100 font-mono opacity-80">{myAsset.id} • {myAsset.name}</p>
+                            </div>
+                        </div>
+                        <span className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-white/20 backdrop-blur-md flex items-center gap-2`}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                            {myAsset.status}
+                        </span>
+                    </div>
+                    <div className="p-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+                        <div>
+                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-2">Fuel Energy</p>
+                            <p className={`text-2xl font-black ${myAsset.fuelLevel < 30 ? 'text-red-500' : 'text-white'}`}>
+                                {Math.round(myAsset.fuelLevel)}%
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-2">Velocity</p>
+                            <p className="text-2xl font-black text-white">{Math.round(myAsset.speed)} <span className="text-xs text-slate-500 font-normal">KM/H</span></p>
+                        </div>
+                        <div className="col-span-2">
+                             <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-2">Geolocation Node</p>
+                             <p className="text-sm font-bold text-indigo-400 flex items-center gap-2">
+                                <Navigation size={14} />
+                                {myAsset.locationName || `${myAsset.location.lat.toFixed(4)}, ${myAsset.location.lng.toFixed(4)}`}
+                             </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-3xl border border-slate-800 p-8 shadow-2xl">
+                    <h3 className="font-black text-white mb-6 flex items-center gap-2 text-sm uppercase tracking-widest">
+                        <Calendar size={18} className="text-indigo-500" /> SEQUENCE LOG
+                    </h3>
+                    <div className="space-y-6">
+                        <div className="flex gap-4">
+                            <div className="flex flex-col items-center">
+                                <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                                <div className="w-px h-full bg-slate-800 my-2"></div>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">06:00 Zulu</p>
+                                <p className="text-sm font-bold text-white">Departure Seq Authorized</p>
+                                <p className="text-[10px] text-green-500 font-bold flex items-center gap-1 mt-1 uppercase tracking-tighter">Verified</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex flex-col items-center">
+                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Phase</p>
+                                <p className="text-sm font-bold text-white">Route: Lusaka Corridor</p>
+                                <p className="text-[10px] text-indigo-400 mt-1 uppercase font-bold">Estimated Handover: 14:30</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      );
+  }
 
   return (
-    <div className="p-8 bg-slate-50/50 min-h-full flex flex-col gap-8">
-      {/* Operations Ticker */}
-      <div className="bg-slate-900 text-white rounded-lg overflow-hidden flex items-center shadow-lg">
-          <div className="bg-saric-600 px-4 py-2 flex items-center gap-2 z-10 shrink-0 font-bold text-sm uppercase tracking-wider">
+    <div className="p-8 bg-slate-950 min-h-full flex flex-col gap-8 text-slate-300">
+      <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl overflow-hidden flex items-center shadow-2xl">
+          <div className="bg-indigo-600 px-6 py-3 flex items-center gap-3 shrink-0 font-black text-xs uppercase tracking-widest">
               <Megaphone size={16} className="animate-pulse" />
-              <span>Live Ops</span>
+              <span>LIVE VANGUARD FEED</span>
           </div>
-          <div className="flex-1 overflow-hidden relative h-9">
-              <div className="absolute top-0 left-0 whitespace-nowrap animate-[marquee_20s_linear_infinite] flex items-center h-full">
-                  {LIVE_TICKER_DATA.map((item, index) => (
-                      <span key={index} className="mx-8 text-xs md:text-sm text-slate-300 flex items-center">
-                          <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-2"></span>
+          <div className="flex-1 overflow-hidden relative h-12">
+              <div className="absolute top-0 left-0 whitespace-nowrap animate-[marquee_25s_linear_infinite] flex items-center h-full">
+                  {tickerMessages.map((item, index) => (
+                      <span key={index} className="mx-10 text-xs font-bold text-slate-400 flex items-center tracking-tight uppercase group">
+                          <span className="w-1 h-1 bg-indigo-500 rounded-full mr-3 group-hover:bg-green-500"></span>
                           {item}
                       </span>
                   ))}
               </div>
           </div>
-          <style>{`
-            @keyframes marquee {
-                0% { transform: translateX(100%); }
-                100% { transform: translateX(-100%); }
-            }
-          `}</style>
+          <div className="bg-slate-950 px-4 py-3 flex items-center gap-2 border-l border-slate-800 text-[9px] font-black uppercase tracking-widest text-indigo-400">
+              <Wifi size={12} className="animate-pulse" />
+              Connected
+          </div>
       </div>
 
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-8 gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Executive Dashboard</h1>
-            <p className="text-slate-500 mt-1">Overview of financial performance, fleet health, and ESG metrics.</p>
+            <h1 className="text-4xl font-black text-white tracking-tighter flex items-center gap-3">
+                COMMAND <span className="text-indigo-500">DECK</span>
+                <div className="px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-indigo-400 text-[10px] uppercase font-black tracking-widest">Live Operations</div>
+            </h1>
+            <p className="text-slate-500 mt-2 font-medium">Enterprise fleet telemetry and strategic intelligence suite.</p>
         </div>
-        <div className="flex gap-3">
-            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200 flex flex-col items-end">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">Fleet Health</span>
-                <span className="text-lg font-bold text-green-600">94%</span>
+        <div className="flex gap-4">
+            <div className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3 shadow-xl">
+              <div className="w-10 h-10 bg-indigo-600/20 rounded-xl flex items-center justify-center text-indigo-500 border border-indigo-500/20">
+                <Server size={20} />
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Environment Status</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
+                  <p className="text-xs font-black text-white uppercase tracking-widest">Production Hub</p>
+                </div>
+              </div>
             </div>
+
             <button 
                 onClick={handleGenerateReport}
                 disabled={loadingAi}
-                className="flex items-center space-x-2 bg-gradient-to-r from-indigo-900 to-indigo-700 text-white px-6 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                className="flex items-center gap-3 bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 font-black text-sm uppercase tracking-widest"
             >
-                <Brain size={18} />
-                <span>{loadingAi ? 'Analyzing...' : 'AI Strategic Insight'}</span>
+                <Brain size={20} />
+                <span>{loadingAi ? 'Calculating...' : 'Execute Intel Protocol'}</span>
             </button>
         </div>
       </header>
 
-      {/* AI Insight Card */}
       {aiReport && (
-        <div className="bg-white rounded-xl shadow-md border border-indigo-100 overflow-hidden animate-fade-in flex flex-col md:flex-row">
-            <div className="bg-indigo-600 p-4 flex flex-col items-center justify-center text-white md:w-32 shrink-0">
-                <Brain size={32} className="mb-2" />
-                <span className="text-xs font-bold uppercase text-center tracking-widest">Gemini AI</span>
+        <div className="bg-slate-900 rounded-3xl border border-indigo-500/30 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500 flex flex-col md:flex-row shadow-2xl">
+            <div className="bg-indigo-600/10 p-6 flex flex-col items-center justify-center text-indigo-400 md:w-40 shrink-0 border-r border-indigo-500/20">
+                <Brain size={40} className="mb-3 animate-pulse" />
+                <span className="text-[10px] font-black uppercase text-center tracking-[0.2em]">Intel Core</span>
             </div>
-            <div className="p-6 flex-1">
-                 <h3 className="font-bold text-lg text-indigo-900 mb-2">Strategic Summary</h3>
-                 <p className="text-slate-700 leading-relaxed text-sm md:text-base">{aiReport}</p>
+            <div className="p-8 flex-1">
+                 <h3 className="font-black text-white text-lg mb-3 tracking-tight">VANGUARD STRATEGIC OVERVIEW</h3>
+                 <p className="text-slate-400 leading-relaxed text-sm italic">"{aiReport}"</p>
             </div>
         </div>
       )}
 
-      {/* Financial & ESG KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 group hover:border-indigo-200 transition-colors">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Net Revenue (MTD)</p>
-                    <h3 className="text-2xl font-bold text-slate-800 mt-2">{formatCurrency(totalRevenue)}</h3>
-                    <p className="text-xs text-green-500 mt-1 flex items-center font-medium">
-                        <TrendingUp size={12} className="mr-1" /> +12.5% vs Last Month
-                    </p>
-                </div>
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                    <DollarSign size={24} />
-                </div>
-            </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 group hover:border-green-200 transition-colors">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Est. CO₂ Emissions</p>
-                    <h3 className="text-2xl font-bold text-slate-800 mt-2">{totalCO2.toLocaleString()} <span className="text-sm text-slate-400 font-normal">kg</span></h3>
-                    <p className="text-xs text-green-600 mt-1 flex items-center font-medium">
-                        <Leaf size={12} className="mr-1" /> Within Green Limits
-                    </p>
-                </div>
-                <div className="p-3 bg-green-50 text-green-600 rounded-xl group-hover:bg-green-600 group-hover:text-white transition-colors">
-                    <Leaf size={24} />
+        {[
+            { label: 'Net Yield (MTD)', val: formatCurrency(totalRevenue), icon: DollarSign, color: 'indigo' },
+            { label: 'CO2 Emission', val: `${totalCO2.toLocaleString()} KG`, icon: Leaf, color: 'green' },
+            { label: 'Active Load', val: `${Math.round((assets.filter(a => a.status === AssetStatus.MOVING).length / Math.max(1, assets.length)) * 100)}%`, icon: Activity, color: 'amber' },
+            { label: 'Crit Alerts', val: assets.filter(a => a.status === AssetStatus.BREAKDOWN).length, icon: AlertTriangle, color: 'red' }
+        ].map((stat, i) => (
+            <div key={i} className="bg-slate-900 p-8 rounded-3xl border border-slate-800 group hover:border-indigo-500/50 transition-all shadow-xl relative overflow-hidden">
+                <div className="flex justify-between items-start relative z-10">
+                    <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</p>
+                        <h3 className="text-2xl font-black text-white mt-2 tracking-tighter">{stat.val}</h3>
+                    </div>
+                    <div className={`p-4 bg-slate-800 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all`}>
+                        <stat.icon size={24} />
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 group hover:border-amber-200 transition-colors">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fleet Utilization</p>
-                    <h3 className="text-2xl font-bold text-slate-800 mt-2">
-                         {Math.round((assets.filter(a => a.status === AssetStatus.MOVING).length / assets.length) * 100)}%
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-1 flex items-center">
-                        {assets.filter(a => a.status === AssetStatus.IDLE).length} units idle
-                    </p>
-                </div>
-                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                    <Activity size={24} />
-                </div>
-            </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 group hover:border-red-200 transition-colors">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Alerts</p>
-                    <h3 className="text-2xl font-bold text-red-600 mt-2">
-                        {assets.filter(a => a.status === AssetStatus.BREAKDOWN).length}
-                    </h3>
-                    <p className="text-xs text-red-400 mt-1 font-medium">Requires Attention</p>
-                </div>
-                <div className="p-3 bg-red-50 text-red-600 rounded-xl group-hover:bg-red-600 group-hover:text-white transition-colors">
-                    <AlertTriangle size={24} />
-                </div>
-            </div>
-        </div>
+        ))}
       </div>
 
-      {/* Main Charts Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Financial Performance */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Financial Performance (MTD)</h3>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-indigo-500 rounded-full"></div> Revenue</span>
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-full"></div> Cost</span>
-                </div>
-            </div>
+        <div className="lg:col-span-2 bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl">
+            <h3 className="text-sm font-black text-white mb-8 tracking-widest uppercase flex items-center gap-2">
+              <Activity size={18} className="text-indigo-500" /> Operational Efficiency Matrix
+            </h3>
             <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={financialData}>
-                        <defs>
-                            <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#94a3b8'}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#94a3b8'}} tickFormatter={(val) => `${val/1000}k`} />
-                        <Tooltip 
-                            contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff'}} 
-                            itemStyle={{color: '#fff'}}
-                        />
-                        <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
-                        <Area type="monotone" dataKey="cost" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" name="Op. Cost" />
-                    </AreaChart>
+                    <BarChart data={efficiencyData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b', fontWeight: 800}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b', fontWeight: 800}} />
+                        <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '16px'}} />
+                        <Bar dataKey="efficiency" fill="#6366f1" radius={[10, 10, 0, 0]} name="Efficiency Score" />
+                        <Bar dataKey="fuel" fill="#10b981" radius={[10, 10, 0, 0]} name="Fuel Capacity" />
+                    </BarChart>
                 </ResponsiveContainer>
             </div>
         </div>
 
-        {/* Fleet Status Donut */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Real-time Status</h3>
-            <div className="flex-1 min-h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={statusData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={70}
-                            outerRadius={90}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {statusData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-                        <Tooltip />
-                        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-700 font-bold text-2xl">
-                            {assets.length}
-                        </text>
-                        <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-xs uppercase tracking-wider transform translate-y-4">
-                            Total Units
-                        </text>
-                    </PieChart>
-                </ResponsiveContainer>
+        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex flex-col shadow-2xl">
+            <h3 className="text-sm font-black text-white mb-6 tracking-widest uppercase flex items-center gap-2">
+              <Package size={18} className="text-kvi-gold" /> Quick Command Panel
+            </h3>
+            <div className="space-y-4">
+               <button 
+                  onClick={() => navigate('/admin/operatives')}
+                  className="w-full flex items-center justify-between p-4 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl group hover:bg-indigo-600 transition-all shadow-lg"
+               >
+                  <div className="flex items-center gap-4 text-left">
+                     <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center">
+                        <UserPlus size={20} />
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black text-indigo-400 group-hover:text-white uppercase tracking-widest">Provisioning</p>
+                        <p className="text-xs font-bold text-white uppercase">Add Operative</p>
+                     </div>
+                  </div>
+                  <ArrowRight size={18} className="text-indigo-400 group-hover:text-white" />
+               </button>
+
+               <button 
+                  onClick={() => navigate('/invoicing')}
+                  className="w-full flex items-center justify-between p-4 bg-slate-800 border border-slate-700 rounded-2xl group hover:border-indigo-500 transition-all"
+               >
+                  <div className="flex items-center gap-4 text-left">
+                     <div className="w-10 h-10 bg-slate-950 text-indigo-500 rounded-xl flex items-center justify-center">
+                        <DollarSign size={20} />
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Finance</p>
+                        <p className="text-xs font-bold text-white uppercase">Generate Invoice</p>
+                     </div>
+                  </div>
+                  <ArrowRight size={18} className="text-slate-600 group-hover:text-indigo-400" />
+               </button>
+
+               <button 
+                  onClick={() => navigate('/admin/security')}
+                  className="w-full flex items-center justify-between p-4 bg-slate-800 border border-slate-700 rounded-2xl group hover:border-indigo-500 transition-all"
+               >
+                  <div className="flex items-center gap-4 text-left">
+                     <div className="w-10 h-10 bg-slate-950 text-amber-500 rounded-xl flex items-center justify-center">
+                        <ShieldCheck size={20} />
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cyber SOC</p>
+                        <p className="text-xs font-bold text-white uppercase">Security Audit</p>
+                     </div>
+                  </div>
+                  <ArrowRight size={18} className="text-slate-600 group-hover:text-amber-400" />
+               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-                {statusData.map((item) => (
-                    <div key={item.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <div className="w-2 h-2 rounded-full" style={{backgroundColor: item.color}}></div>
-                            {item.name}
-                        </div>
-                        <span className="font-bold text-slate-800 text-sm">{item.value}</span>
+
+            <div className="mt-8 pt-8 border-t border-slate-800">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Critical Inventory</h4>
+                <div className="space-y-3 overflow-y-auto max-h-[150px] scrollbar-hide pr-2">
+                  {lowStockItems.length > 0 ? lowStockItems.map(item => (
+                    <div key={item.id} className="p-4 bg-slate-800/50 rounded-2xl border border-red-500/20 flex justify-between items-center group hover:bg-slate-800 transition-colors">
+                      <div>
+                        <p className="text-xs font-black text-white uppercase tracking-tight">{item.name}</p>
+                        <p className="text-[10px] text-slate-500 uppercase">{item.category}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-black text-red-400">{item.quantity} {item.unit}</p>
+                      </div>
                     </div>
-                ))}
+                  )) : (
+                    <div className="flex flex-col items-center justify-center py-4 opacity-30">
+                      <Shield size={24} />
+                      <p className="text-[8px] font-black uppercase mt-1">Supplies Optimal</p>
+                    </div>
+                  )}
+                </div>
             </div>
         </div>
       </div>
-      
-      {/* Operational Segments */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-                  <Truck size={24} />
-              </div>
-              <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase">Heavy Haulage</p>
-                  <h4 className="text-lg font-bold text-slate-800">
-                      {assets.filter(a => a.category === 'Heavy Transport').length} Units Active
-                  </h4>
-              </div>
-          </div>
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
-                  <Bus size={24} />
-              </div>
-              <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase">Shuttle Service</p>
-                  <h4 className="text-lg font-bold text-slate-800">
-                      {assets.filter(a => a.category === 'Shuttle').length} Routes Live
-                  </h4>
-              </div>
-          </div>
-           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-              <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
-                  <Construction size={24} />
-              </div>
-              <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase">Construction</p>
-                  <h4 className="text-lg font-bold text-slate-800">
-                      {assets.filter(a => a.category === 'Construction').length} Sites Active
-                  </h4>
-              </div>
-          </div>
-      </div>
-
     </div>
   );
 };

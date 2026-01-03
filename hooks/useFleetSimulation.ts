@@ -31,7 +31,11 @@ export const useFleetSimulation = (isAuthenticated: boolean) => {
           // Random Breakdown Chance (very low probability per tick)
           const isBreakdown = Math.random() > 0.995; 
           
-          if (isBreakdown && asset.status !== AssetStatus.BREAKDOWN) {
+          // Fix: Removed redundant check 'asset.status !== AssetStatus.BREAKDOWN' 
+          // because the early return at the start of the map function guarantees 
+          // that if we reach here, the status is 'MOVING'. Comparing 'MOVING' 
+          // with 'BREAKDOWN' for inequality is always true and triggers a TS error.
+          if (isBreakdown) {
              return { ...asset, status: AssetStatus.BREAKDOWN, speed: 0 };
           }
 

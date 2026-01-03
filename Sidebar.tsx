@@ -1,14 +1,12 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, Truck, Package, FileText, Users, Wrench, Folder, Shield, ShieldAlert, Activity, UserCog, MessageSquarePlus } from 'lucide-react';
+import { LayoutDashboard, Map, Truck, Package, FileText, Users, Wrench, Folder, Shield, ShieldAlert, Activity, UserCog } from 'lucide-react';
 
 interface SidebarProps {
   userRole?: 'admin' | 'user';
-  onOpenFeedback?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user', onOpenFeedback }) => {
+const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' }) => {
   const navClasses = ({ isActive }: { isActive: boolean }) =>
     `flex items-center space-x-3 px-6 py-3 text-sm font-medium transition-all duration-200 border-l-4 ${
       isActive
@@ -89,15 +87,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user', onOpenFeedback }) 
             <Folder size={18} />
             <span>Digital Docs</span>
         </NavLink>
-
-        <div className="px-6 mt-6 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Communication</div>
-        <button 
-          onClick={onOpenFeedback}
-          className="w-full flex items-center space-x-3 px-6 py-3 text-sm font-medium transition-all duration-200 border-l-4 border-transparent text-slate-400 hover:bg-slate-800 hover:text-white"
-        >
-          <MessageSquarePlus size={18} className="text-kvi-gold" />
-          <span>Send Feedback</span>
-        </button>
       </nav>
 
       {/* Footer */}

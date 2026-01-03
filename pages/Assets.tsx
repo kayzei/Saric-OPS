@@ -1,29 +1,168 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Asset, AssetStatus, AssetCategory } from '../types';
-import { Truck, AlertCircle, CheckCircle, Clock, Pencil, X, Save, Bus, Construction, Wrench, Car, BarChart2, Fuel, Gauge } from 'lucide-react';
+import { Truck, AlertCircle, CheckCircle, Clock, Pencil, X, Save, Bus, Construction, Wrench, Car, BarChart2, Fuel, Gauge, Search, MapPin, ClipboardCheck, Thermometer, Battery } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface AssetsProps {
   assets: Asset[];
   onUpdateAsset: (asset: Asset) => void;
+  userRole?: 'admin' | 'user';
 }
 
-const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
+const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset, userRole = 'user' }) => {
   const location = useLocation();
   const targetAssetId = location.state?.targetAssetId;
   const rowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [viewingTelemetry, setViewingTelemetry] = useState<Asset | null>(null);
   const [activeTab, setActiveTab] = useState<AssetCategory | 'All'>('All');
+  const [searchTerm, setSearchTerm] = useState('');
 
+  // --- DRIVER VIEW (USER) ---
+  if (userRole === 'user') {
+      const myAsset = assets.find(a => a.id === 'SRC-104') || assets[0]; // Simulation binding
+      return (
+        <div className="p-6 bg-slate-50/50 min-h-full">
+            <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <Truck size={24} className="text-indigo-600" />
+                My Vehicle Inspector
+            </h1>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Visual Representation & Status */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div className="flex justify-between items-start mb-6">
+                        <div>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Unit ID</span>
+                            <h2 className="text-3xl font-bold text-slate-800">{myAsset.id}</h2>
+                            <p className="text-slate-500">{myAsset.name}</p>
+                        </div>
+                        <span className={`px-4 py-2 rounded-full text-sm font-bold ${myAsset.status === AssetStatus.MOVING ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                            {myAsset.status}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                            <div className="flex items-center gap-2 text-slate-500 mb-1">
+                                <Gauge size={16} /> <span className="text-xs font-bold uppercase">Odometer</span>
+                            </div>
+                            <p className="text-xl font-mono font-bold text-slate-800">142,005 km</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                             <div className="flex items-center gap-2 text-slate-500 mb-1">
+                                <Wrench size={16} /> <span className="text-xs font-bold uppercase">Next Service</span>
+                            </div>
+                            <p className="text-xl font-mono font-bold text-indigo-600">1,500 km</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                             <div className="flex items-center gap-2 text-slate-500 mb-1">
+                                <Thermometer size={16} /> <span className="text-xs font-bold uppercase">Engine Temp</span>
+                            </div>
+                            <p className="text-xl font-mono font-bold text-green-600">92°C</p>
+                        </div>
+                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                             <div className="flex items-center gap-2 text-slate-500 mb-1">
+                                <Battery size={16} /> <span className="text-xs font-bold uppercase">Battery</span>
+                            </div>
+                            <p className="text-xl font-mono font-bold text-green-600">24.2 V</p>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-6">
+                        <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><ClipboardCheck size={18} /> Pre-Trip Checklist</h3>
+                        <div className="space-y-3">
+                            {['Tires & Wheels Checked', 'Fluid Levels (Oil, Coolant)', 'Lights & Signals', 'Brakes & Air Pressure'].map((item, idx) => (
+                                <label key={idx} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                                    <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
+                                    <span className="text-sm font-medium text-slate-700">{item}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <button className="w-full mt-4 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors">
+                            Submit Inspection Log
+                        </button>
+                    </div>
+                </div>
+
+                {/* Docs & History */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <h3 className="font-bold text-slate-800 mb-4">Vehicle Documents</h3>
+                    <div className="space-y-2 mb-8">
+                         <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 text-blue-600 rounded"><Truck size={16} /></div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700">Fitness Certificate</p>
+                                    <p className="text-xs text-green-600">Valid until Dec 2024</p>
+                                </div>
+                            </div>
+                            <button className="text-xs text-indigo-600 font-bold hover:underline">View</button>
+                         </div>
+                         <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-100 text-purple-600 rounded"><Truck size={16} /></div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700">Insurance Policy</p>
+                                    <p className="text-xs text-green-600">Active</p>
+                                </div>
+                            </div>
+                            <button className="text-xs text-indigo-600 font-bold hover:underline">View</button>
+                         </div>
+                    </div>
+                    
+                    <h3 className="font-bold text-slate-800 mb-4">Recent Service History</h3>
+                    <div className="space-y-4">
+                        <div className="flex gap-4 relative">
+                            <div className="flex flex-col items-center">
+                                <div className="w-3 h-3 bg-slate-300 rounded-full"></div>
+                                <div className="w-0.5 h-full bg-slate-100 my-1"></div>
+                            </div>
+                            <div className="pb-4">
+                                <p className="text-xs text-slate-400">10 Apr 2024</p>
+                                <p className="font-bold text-sm text-slate-800">Routine A-Service</p>
+                                <p className="text-xs text-slate-500">Ndola Service Center</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-4 relative">
+                             <div className="flex flex-col items-center">
+                                <div className="w-3 h-3 bg-slate-300 rounded-full"></div>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-400">15 Jan 2024</p>
+                                <p className="font-bold text-sm text-slate-800">Tire Replacement (Rear)</p>
+                                <p className="text-xs text-slate-500">Lusaka Workshop</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      );
+  }
+
+  // --- ADMIN VIEW ---
   useEffect(() => {
     if (targetAssetId && rowRefs.current[targetAssetId]) {
       rowRefs.current[targetAssetId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [targetAssetId]);
 
-  const filteredAssets = activeTab === 'All' ? assets : assets.filter(a => a.category === activeTab);
+  const filteredAssets = assets.filter(a => {
+      const matchesCategory = activeTab === 'All' || a.category === activeTab;
+      
+      const searchLower = searchTerm.toLowerCase();
+      // Improved search logic: checks location name, lat/lng strings, ID, and Asset Name
+      const matchesSearch = !searchTerm ||
+          (a.locationName?.toLowerCase().includes(searchLower)) ||
+          (a.location.lat.toString().includes(searchLower)) ||
+          (a.location.lng.toString().includes(searchLower)) ||
+          (a.id.toLowerCase().includes(searchLower)) ||
+          (a.name.toLowerCase().includes(searchLower));
+      
+      return matchesCategory && matchesSearch;
+  });
 
   const getStatusBadge = (status: AssetStatus) => {
     const baseClasses = "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 w-fit border shadow-sm transition-all";
@@ -97,21 +236,44 @@ const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
       <h1 className="text-2xl font-bold text-slate-800 mb-2">Fleet Management</h1>
       <p className="text-sm text-slate-500 mb-6">Real-time telemetry and asset configuration.</p>
       
-      {/* Category Tabs */}
-      <div className="flex space-x-1 mb-6 overflow-x-auto bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-fit">
-          {tabs.map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
-                    activeTab === tab 
-                    ? 'bg-slate-900 text-white shadow' 
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                  {tab}
-              </button>
-          ))}
+      {/* Controls: Tabs & Search */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+        {/* Tabs */}
+        <div className="flex space-x-1 overflow-x-auto bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full lg:w-auto">
+            {tabs.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
+                      activeTab === tab 
+                      ? 'bg-slate-900 text-white shadow' 
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                    {tab}
+                </button>
+            ))}
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative w-full lg:w-80 group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+            <input
+                type="text"
+                placeholder="Filter by City, Coordinates, ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm w-full bg-white shadow-sm transition-all hover:border-indigo-200 placeholder:text-slate-400"
+            />
+            {searchTerm && (
+                <button 
+                    onClick={() => setSearchTerm('')} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                    <X size={14} />
+                </button>
+            )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -132,7 +294,7 @@ const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAssets.map((asset) => {
+              {filteredAssets.length > 0 ? filteredAssets.map((asset) => {
                 const isHighlighted = asset.id === targetAssetId;
                 return (
                   <tr 
@@ -165,9 +327,18 @@ const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
                         </div>
                         <span className="text-xs font-mono">{Math.round(asset.fuelLevel)}%</span>
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs">{asset.speed} km/h</td>
-                    <td className="px-6 py-4 text-xs text-slate-500">
-                        {asset.location.lat.toFixed(4)}, {asset.location.lng.toFixed(4)}
+                    <td className="px-6 py-4 font-mono text-xs">{asset.speed.toFixed(0)} km/h</td>
+                    <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                            {asset.locationName && (
+                                <span className="font-bold text-slate-700 text-xs mb-0.5 flex items-center gap-1">
+                                    <MapPin size={10} className="text-slate-400" /> {asset.locationName}
+                                </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 font-mono">
+                                {asset.location.lat.toFixed(4)}, {asset.location.lng.toFixed(4)}
+                            </span>
+                        </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                          <button 
@@ -188,7 +359,16 @@ const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
                     </td>
                   </tr>
                 );
-              })}
+              }) : (
+                 <tr>
+                    <td colSpan={10} className="px-6 py-12 text-center text-slate-400 italic">
+                        <div className="flex flex-col items-center justify-center">
+                            <Search size={48} className="text-slate-200 mb-2" />
+                            <p>No assets found matching "{searchTerm}"</p>
+                        </div>
+                    </td>
+                 </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -297,6 +477,16 @@ const Assets: React.FC<AssetsProps> = ({ assets, onUpdateAsset }) => {
                         type="text" 
                         value={editingAsset.driver}
                         onChange={(e) => setEditingAsset({...editingAsset, driver: e.target.value})}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Location Name</label>
+                    <input 
+                        type="text" 
+                        value={editingAsset.locationName || ''}
+                        onChange={(e) => setEditingAsset({...editingAsset, locationName: e.target.value})}
+                        placeholder="e.g. Lusaka, Kabwe"
                         className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
                 </div>

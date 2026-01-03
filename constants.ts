@@ -192,7 +192,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-001',
     projectId: 'PRJ-LND-RD',
     status: AssetStatus.MOVING,
-    location: { lat: -14.4265, lng: 28.4396 }, // Kabwe
+    location: { lat: -14.4265, lng: 28.4396 },
+    locationName: 'Kabwe',
     destination: { lat: -12.9587, lng: 28.6366 }, // Ndola
     cargoType: 'Road Base Materials',
     speed: 75,
@@ -212,7 +213,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-002',
     projectId: 'PRJ-KANS-24',
     status: AssetStatus.IDLE,
-    location: { lat: -12.1689, lng: 26.3927 }, // Solwezi
+    location: { lat: -12.1689, lng: 26.3927 },
+    locationName: 'Solwezi',
     destination: { lat: -12.5373, lng: 27.8458 }, // Chingola
     cargoType: 'Copper Concentrates',
     speed: 0,
@@ -233,7 +235,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-003',
     projectId: undefined,
     status: AssetStatus.MOVING,
-    location: { lat: -15.9534, lng: 28.8657 }, // Chirundu
+    location: { lat: -15.9534, lng: 28.8657 },
+    locationName: 'Chirundu',
     destination: { lat: -15.3875, lng: 28.3228 }, // Lusaka
     cargoType: 'Imported Goods',
     speed: 68,
@@ -253,7 +256,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-004',
     projectId: 'PRJ-LND-RD',
     status: AssetStatus.BREAKDOWN,
-    location: { lat: -10.5087, lng: 31.8129 }, // Chinsali
+    location: { lat: -10.5087, lng: 31.8129 },
+    locationName: 'Chinsali',
     destination: { lat: -12.8024, lng: 28.2132 }, // Kitwe
     cargoType: 'Construction Steel',
     speed: 0,
@@ -273,7 +277,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-005',
     projectId: 'PRJ-KANS-24',
     status: AssetStatus.MOVING,
-    location: { lat: -12.2000, lng: 26.4500 }, // Near Solwezi
+    location: { lat: -12.2000, lng: 26.4500 },
+    locationName: 'Near Solwezi',
     destination: { lat: -12.1689, lng: 26.3927 }, // Mine Site
     cargoType: 'Overburden',
     speed: 45,
@@ -293,7 +298,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-006',
     projectId: 'PRJ-KANS-24',
     status: AssetStatus.MOVING,
-    location: { lat: -12.3489, lng: 27.8265 }, // Kasumbalesa Border route
+    location: { lat: -12.3489, lng: 27.8265 },
+    locationName: 'Kasumbalesa Route',
     destination: { lat: -11.9383, lng: 27.8624 }, // Kasumbalesa
     cargoType: 'Fuel Tanker',
     speed: 60,
@@ -313,7 +319,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-007',
     projectId: 'PRJ-MNG-AID',
     status: AssetStatus.STOPPED,
-    location: { lat: -15.2724, lng: 23.1487 }, // Mongu
+    location: { lat: -15.2724, lng: 23.1487 },
+    locationName: 'Mongu',
     destination: { lat: -14.9416, lng: 24.1754 }, // Kaoma
     cargoType: 'Maize Meal',
     speed: 0,
@@ -333,7 +340,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-008',
     projectId: 'PRJ-MNG-AID',
     status: AssetStatus.MOVING,
-    location: { lat: -17.8419, lng: 25.8528 }, // Livingstone
+    location: { lat: -17.8419, lng: 25.8528 },
+    locationName: 'Livingstone',
     destination: { lat: -16.5430, lng: 26.0030 }, // Kalomo
     cargoType: 'Relief Tents',
     speed: 82,
@@ -354,7 +362,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-009',
     projectId: 'PRJ-KKIA-SHT',
     status: AssetStatus.MOVING,
-    location: { lat: -15.3275, lng: 28.4426 }, // Near KKIA Lusaka
+    location: { lat: -15.3275, lng: 28.4426 },
+    locationName: 'KKIA Airport Area',
     destination: { lat: -15.4167, lng: 28.2833 }, // Lusaka CBD
     cargoType: 'Passengers (18)',
     speed: 55,
@@ -373,7 +382,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driver: 'Unassigned',
     projectId: 'PRJ-KKIA-SHT',
     status: AssetStatus.IDLE,
-    location: { lat: -15.4167, lng: 28.2833 }, // Lusaka
+    location: { lat: -15.4167, lng: 28.2833 },
+    locationName: 'Lusaka CBD',
     destination: { lat: -15.4167, lng: 28.2833 },
     cargoType: 'Passengers (14)',
     speed: 0,
@@ -393,7 +403,8 @@ export const INITIAL_ASSETS: Asset[] = [
     driverId: 'DRV-010',
     projectId: 'PRJ-LND-RD',
     status: AssetStatus.STOPPED,
-    location: { lat: -14.4265, lng: 28.4396 }, // Kabwe Site
+    location: { lat: -14.4265, lng: 28.4396 },
+    locationName: 'Kabwe Site',
     destination: { lat: -14.4265, lng: 28.4396 },
     cargoType: 'Mobile Crane',
     speed: 0,
@@ -411,7 +422,8 @@ export const INITIAL_ASSETS: Asset[] = [
     category: 'Support',
     driver: 'Standby Crew',
     status: AssetStatus.IDLE,
-    location: { lat: -12.9587, lng: 28.6366 }, // Ndola Hub
+    location: { lat: -12.9587, lng: 28.6366 },
+    locationName: 'Ndola Hub',
     destination: { lat: -12.9587, lng: 28.6366 },
     cargoType: 'Breakdown Recovery',
     speed: 0,
@@ -440,11 +452,85 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
 
 // --- INVOICES ---
 export const INITIAL_INVOICES: Invoice[] = [
-  { id: 'INV-2024-001', customer: 'First Quantum Minerals', tpin: '1001992832', date: '2024-05-15', amount: 450000, vat: 72000, status: 'Fiscalised', zraSignature: 'ZRA-ESD-88219-GEN', items: 'Heavy Equipment Transport (Solwezi)', auditTrail: [{timestamp: '2024-05-15 14:30', action: 'Generated', user: 'System'}, {timestamp: '2024-05-15 14:35', action: 'Fiscalised via ESD', user: 'SARIC-ADMIN'}] },
-  { id: 'INV-2024-002', customer: 'Mopani Copper Mines', tpin: '1002883711', date: '2024-05-18', amount: 125000, vat: 20000, status: 'Pending', items: 'Copper Cathode Logistics', auditTrail: [{timestamp: '2024-05-18 09:00', action: 'Draft Created', user: 'Finance-01'}] },
-  { id: 'INV-2024-003', customer: 'ZESCO Limited', tpin: '1000004455', date: '2024-05-19', amount: 89000, vat: 14240, status: 'Fiscalised', zraSignature: 'ZRA-ESD-11029-GEN', items: 'Transformer Delivery (Kafue Gorge)', auditTrail: [] },
-  { id: 'INV-2024-004', customer: 'Shoprite Zambia', tpin: '1003991122', date: '2024-05-20', amount: 54000, vat: 8640, status: 'Pending', items: 'Fresh Produce Distribution', auditTrail: [] },
-  { id: 'INV-2024-005', customer: 'Emirates Airlines', tpin: '1009922331', date: '2024-05-21', amount: 12000, vat: 1920, status: 'Fiscalised', zraSignature: 'ZRA-ESD-55412-GEN', items: 'Monthly Crew Shuttle Services', auditTrail: [] },
+  { 
+      id: 'INV-2024-001', 
+      customer: 'First Quantum Minerals', 
+      tpin: '1001992832',
+      currency: 'ZMW', 
+      date: '2024-05-15', 
+      amount: 450000, 
+      vat: 72000, 
+      status: 'Fiscalised', 
+      zraSignature: 'ZRA-ESD-88219-GEN', 
+      items: 'Heavy Equipment Transport (Solwezi)',
+      lineItems: [
+          { id: 'l1', description: 'Heavy Equipment Transport (Solwezi)', hsCode: '990210', quantity: 1, unitPrice: 450000, taxType: 'A', total: 450000 }
+      ],
+      auditTrail: [{timestamp: '2024-05-15 14:30', action: 'Generated', user: 'System'}, {timestamp: '2024-05-15 14:35', action: 'Fiscalised via ESD', user: 'SARIC-ADMIN'}] 
+  },
+  { 
+      id: 'INV-2024-002', 
+      customer: 'Mopani Copper Mines', 
+      tpin: '1002883711', 
+      currency: 'USD',
+      exchangeRate: 26.5,
+      date: '2024-05-18', 
+      amount: 5000, 
+      vat: 800, 
+      status: 'Pending', 
+      items: 'Copper Cathode Logistics',
+      lineItems: [
+           { id: 'l2', description: 'Copper Cathode Logistics', hsCode: '990210', quantity: 1, unitPrice: 5000, taxType: 'A', total: 5000 }
+      ],
+      auditTrail: [{timestamp: '2024-05-18 09:00', action: 'Draft Created', user: 'Finance-01'}] 
+  },
+  { 
+      id: 'INV-2024-003', 
+      customer: 'ZESCO Limited', 
+      tpin: '1000004455', 
+      currency: 'ZMW',
+      date: '2024-05-19', 
+      amount: 89000, 
+      vat: 14240, 
+      status: 'Fiscalised', 
+      zraSignature: 'ZRA-ESD-11029-GEN', 
+      items: 'Transformer Delivery (Kafue Gorge)',
+      lineItems: [
+          { id: 'l3', description: 'Transformer Delivery (Kafue Gorge)', hsCode: '850422', quantity: 1, unitPrice: 89000, taxType: 'A', total: 89000 }
+      ],
+      auditTrail: [] 
+  },
+  { 
+      id: 'INV-2024-004', 
+      customer: 'Shoprite Zambia', 
+      tpin: '1003991122', 
+      currency: 'ZMW',
+      date: '2024-05-20', 
+      amount: 54000, 
+      vat: 8640, 
+      status: 'Pending', 
+      items: 'Fresh Produce Distribution',
+      lineItems: [
+          { id: 'l4', description: 'Fresh Produce Distribution', hsCode: '990210', quantity: 1, unitPrice: 54000, taxType: 'A', total: 54000 }
+      ],
+      auditTrail: [] 
+  },
+  { 
+      id: 'INV-2024-005', 
+      customer: 'Emirates Airlines', 
+      tpin: '1009922331', 
+      currency: 'ZMW',
+      date: '2024-05-21', 
+      amount: 12000, 
+      vat: 1920, 
+      status: 'Fiscalised', 
+      zraSignature: 'ZRA-ESD-55412-GEN', 
+      items: 'Monthly Crew Shuttle Services',
+      lineItems: [
+          { id: 'l5', description: 'Monthly Crew Shuttle Services', hsCode: '990210', quantity: 1, unitPrice: 12000, taxType: 'A', total: 12000 }
+      ],
+      auditTrail: [] 
+  },
 ];
 
 // --- MAINTENANCE RECORDS ---
