@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { User, Bell, Lock, Globe, Save, Building2, Clock } from 'lucide-react';
+import { User, Bell, Lock, Globe, Save, Building2, Clock, ShieldCheck, Settings2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Profile } from '../types';
 
@@ -9,13 +10,14 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ profile }) => {
   const [activeTab, setActiveTab] = useState('profile');
+  const [dept, setDept] = useState(profile?.department || 'Operations');
 
   const handleSave = () => {
-    toast.success("Settings saved successfully");
+    toast.success("Identity profile synchronized successfully");
   };
 
   const formatLastActive = (dateStr?: string) => {
-    if (!dateStr) return 'N/A';
+    if (!dateStr) return 'No recorded handshake';
     try {
       return new Date(dateStr).toLocaleString();
     } catch (e) {
@@ -25,128 +27,125 @@ const Settings: React.FC<SettingsProps> = ({ profile }) => {
 
   return (
     <div className="p-8 bg-slate-50/50 min-h-full relative">
-       <h1 className="text-2xl font-bold text-slate-800 mb-6">System Configuration</h1>
+       <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
+          <Globe className="text-indigo-600" size={24} />
+          System Configuration
+       </h1>
 
-       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex min-h-[600px]">
+       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex min-h-[600px]">
            {/* Settings Sidebar */}
            <div className="w-64 border-r border-slate-100 bg-slate-50 p-4">
                <nav className="space-y-1">
-                   <button 
-                        onClick={() => setActiveTab('profile')}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:bg-slate-200/50'}`}
-                   >
-                       <User size={18} />
-                       <span>Profile & Account</span>
-                   </button>
-                   <button 
-                        onClick={() => setActiveTab('notifications')}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'notifications' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:bg-slate-200/50'}`}
-                   >
-                       <Bell size={18} />
-                       <span>Notifications</span>
-                   </button>
-                   <button 
-                        onClick={() => setActiveTab('security')}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'security' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:bg-slate-200/50'}`}
-                   >
-                       <Lock size={18} />
-                       <span>Security</span>
-                   </button>
-                   <button 
-                        onClick={() => setActiveTab('system')}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'system' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:bg-slate-200/50'}`}
-                   >
-                       <Globe size={18} />
-                       <span>System Preferences</span>
-                   </button>
+                   {[
+                     { id: 'profile', icon: User, label: 'Profile & Account' },
+                     { id: 'notifications', icon: Bell, label: 'Notifications' },
+                     { id: 'security', icon: Lock, label: 'Security' },
+                     { id: 'system', icon: Globe, label: 'System Preferences' }
+                   ].map(tab => (
+                     <button 
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-xl transition-all ${activeTab === tab.id ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:bg-slate-200/50'}`}
+                     >
+                       <tab.icon size={18} />
+                       <span>{tab.label}</span>
+                     </button>
+                   ))}
                </nav>
            </div>
 
            {/* Content Area */}
-           <div className="flex-1 p-8">
+           <div className="flex-1 p-12">
                {activeTab === 'profile' && (
-                   <div className="max-w-lg space-y-6 animate-fade-in">
+                   <div className="max-w-xl space-y-8 animate-fade-in">
                        <div>
-                           <h3 className="text-lg font-bold text-slate-800 mb-1">Profile Information</h3>
-                           <p className="text-sm text-slate-500">Update your account details and public profile.</p>
+                           <h3 className="text-xl font-bold text-slate-800 mb-1">Operative Profile</h3>
+                           <p className="text-sm text-slate-500">Manage your command identity and organizational metadata.</p>
                        </div>
-                       <div className="space-y-4">
-                           <div>
-                               <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                               <div className="relative">
-                                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                  <input type="text" defaultValue={profile?.fullName || "Admin User"} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
-                               </div>
-                           </div>
-                           <div>
-                               <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                               <input type="email" defaultValue={profile?.email || "admin@sariclogistics.co.zm"} className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
-                           </div>
-                           <div className="grid grid-cols-2 gap-4">
-                               <div>
-                                   <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
+                       
+                       <div className="space-y-6">
+                           <div className="grid grid-cols-2 gap-6">
+                               <div className="col-span-2">
+                                   <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Full Legal Name</label>
                                    <div className="relative">
-                                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                      <input type="text" defaultValue={profile?.department || "Operations"} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+                                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                      <input 
+                                        type="text" 
+                                        defaultValue={profile?.fullName} 
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700" 
+                                      />
                                    </div>
                                </div>
+
+                               <div className="col-span-2">
+                                   <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Enterprise Email</label>
+                                   <input 
+                                     type="email" 
+                                     defaultValue={profile?.email} 
+                                     disabled 
+                                     className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-400 cursor-not-allowed font-mono text-sm" 
+                                   />
+                               </div>
+
                                <div>
-                                   <label className="block text-sm font-medium text-slate-700 mb-1">Clearance Role</label>
-                                   <input type="text" defaultValue={profile?.role?.toUpperCase() || "ADMIN"} disabled className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed font-bold" />
+                                   <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Department</label>
+                                   <div className="relative">
+                                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                      <input 
+                                        type="text" 
+                                        value={dept}
+                                        onChange={(e) => setDept(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700" 
+                                      />
+                                   </div>
+                               </div>
+
+                               <div>
+                                   <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Clearance Level</label>
+                                   <div className="relative">
+                                      <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
+                                      <input 
+                                        type="text" 
+                                        defaultValue={profile?.role?.toUpperCase()} 
+                                        disabled 
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-indigo-50 text-indigo-600 font-black text-xs tracking-widest" 
+                                      />
+                                   </div>
+                               </div>
+
+                               <div className="col-span-2">
+                                   <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Last Active Handshake</label>
+                                   <div className="relative">
+                                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                      <input 
+                                        type="text" 
+                                        value={formatLastActive(profile?.lastActive)} 
+                                        disabled 
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 cursor-not-allowed font-mono text-xs" 
+                                      />
+                                   </div>
                                </div>
                            </div>
-                           <div>
-                               <label className="block text-sm font-medium text-slate-700 mb-1">Last Active Timestamp</label>
-                               <div className="relative">
-                                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                  <input type="text" value={formatLastActive(profile?.lastActive)} disabled className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed font-mono text-xs" />
-                               </div>
-                           </div>
+                       </div>
+
+                       <div className="pt-6 border-t border-slate-100 flex justify-end">
+                           <button 
+                                onClick={handleSave}
+                                className="px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-95"
+                           >
+                               <Save size={18} />
+                               Sync Profile Changes
+                           </button>
                        </div>
                    </div>
                )}
 
-                {activeTab === 'notifications' && (
-                   <div className="max-w-lg space-y-6 animate-fade-in">
-                       <div>
-                           <h3 className="text-lg font-bold text-slate-800 mb-1">Alert Preferences</h3>
-                           <p className="text-sm text-slate-500">Manage how you receive critical alerts.</p>
-                       </div>
-                       <div className="space-y-4">
-                           <div className="flex items-center justify-between py-3 border-b border-slate-50">
-                               <div>
-                                   <h4 className="text-sm font-medium text-slate-800">Breakdown SMS Alerts</h4>
-                                   <p className="text-xs text-slate-500">Receive immediate SMS for asset breakdowns.</p>
-                               </div>
-                               <input type="checkbox" defaultChecked className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
-                           </div>
-                           <div className="flex items-center justify-between py-3 border-b border-slate-50">
-                               <div>
-                                   <h4 className="text-sm font-medium text-slate-800">Daily Report Email</h4>
-                                   <p className="text-xs text-slate-500">08:00 AM digest of fleet performance.</p>
-                               </div>
-                               <input type="checkbox" defaultChecked className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
-                           </div>
-                           <div className="flex items-center justify-between py-3 border-b border-slate-50">
-                               <div>
-                                   <h4 className="text-sm font-medium text-slate-800">Geofence Violations</h4>
-                                   <p className="text-xs text-slate-500">Alert when assets leave authorized zones.</p>
-                               </div>
-                               <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
-                           </div>
-                       </div>
-                   </div>
+               {activeTab !== 'profile' && (
+                 <div className="flex flex-col items-center justify-center h-full text-center text-slate-400">
+                    <Settings2 size={48} className="mb-4 opacity-10" />
+                    <p className="text-sm font-medium uppercase tracking-widest">Section under maintenance</p>
+                 </div>
                )}
-
-               <div className="mt-10 pt-6 border-t border-slate-100">
-                   <button 
-                        onClick={handleSave}
-                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center gap-2"
-                   >
-                       <Save size={18} />
-                       Save Changes
-                   </button>
-               </div>
            </div>
        </div>
     </div>

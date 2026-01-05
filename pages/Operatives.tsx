@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Shield, UserCog, Lock, Fingerprint, Activity, ShieldCheck, UserPlus, RefreshCw, Filter, Trash2, Mail, Calendar, Database, X, Sparkles, Key, CheckCircle2, ShieldAlert, Circle, Clock, Zap, SendHorizontal } from 'lucide-react';
+import { Users, Search, Shield, UserCog, Lock, UserPlus, RefreshCw, X, Mail, Clock, Zap, SendHorizontal, Circle, ShieldAlert, AlertCircle } from 'lucide-react';
 import { supabase, supabaseAdmin, isSupabaseConfigured, isAdminAvailable } from '../lib/supabaseClient';
 import toast from 'react-hot-toast';
 import { Profile } from '../types';
@@ -14,7 +14,7 @@ const Operatives: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
     
-    // Provisioning Form State
+    // Invitation Modal State
     const [showAddModal, setShowAddModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newName, setNewName] = useState('');
@@ -56,38 +56,53 @@ const Operatives: React.FC = () => {
 
     const getStatusIndicator = (lastActive?: string) => {
         if (!lastActive) return { label: 'Pending', color: 'bg-amber-400', isOnline: false };
-        
         const activeDate = new Date(lastActive);
         const now = new Date();
         const diffMinutes = (now.getTime() - activeDate.getTime()) / 60000;
 
-        if (diffMinutes < 5) {
-            return { label: 'Online', color: 'bg-green-500', isOnline: true };
-        } else if (diffMinutes < 60) {
-            return { label: 'Away', color: 'bg-amber-500', isOnline: false };
-        } else {
-            return { label: 'Offline', color: 'bg-slate-500', isOnline: false };
-        }
-    };
-
-    const formatLastActive = (dateStr?: string) => {
-        if (!dateStr) return 'Pending Invite';
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        const diffHours = Math.floor(diffMins / 60);
-        if (diffHours < 24) return `${diffHours}h ago`;
-        return date.toLocaleDateString();
+        if (diffMinutes < 5) return { label: 'Online', color: 'bg-green-500', isOnline: true };
+        if (diffMinutes < 60) return { label: 'Away', color: 'bg-amber-500', isOnline: false };
+        return { label: 'Offline', color: 'bg-slate-500', isOnline: false };
     };
 
     const handleInviteOperative = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // --- SIMULATION MODE FALLBACK ---
         if (!isAdminAvailable() || !supabaseAdmin) {
-            toast.error("Cloud infrastructure administrative link missing. Set VITE_SUPABASE_SERVICE_ROLE_KEY.");
+            setIsSubmitting(true);
+            toast.promise(
+                new Promise(async (resolve, reject) => {
+                    setTimeout(async () => {
+                        // Attempt to at least create a profile entry if RLS permits
+                        if (supabase) {
+                            const tempId = crypto.randomUUID();
+                            const { error } = await supabase.from('profiles').insert({
+                                id: tempId,
+                                full_name: newName,
+                                email: newEmail,
+                                role: newRole,
+                                current_task: 'Simulated Onboarding'
+                            });
+                            
+                            if (error) {
+                                reject("Simulation restricted by database policy.");
+                            } else {
+                                resolve("Simulation Successful");
+                                fetchUsers();
+                                setShowAddModal(false);
+                            }
+                        } else {
+                            reject("No database link.");
+                        }
+                    }, 1500);
+                }),
+                {
+                    loading: 'Simulating Invitation Dispatch...',
+                    success: 'Operative Provisioned (Simulation Mode)',
+                    error: 'Administrative Key Required for Real Invitations'
+                }
+            ).finally(() => setIsSubmitting(false));
             return;
         }
 
@@ -95,7 +110,6 @@ const Operatives: React.FC = () => {
         const loadId = toast.loading(`Dispatching invitation to ${newEmail}...`);
 
         try {
-            // 1. Dispatch Invitation Email via Supabase Auth Admin
             const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(newEmail, {
                 redirectTo: `${window.location.origin}/#/reset-password`,
                 data: { full_name: newName, role: newRole }
@@ -104,8 +118,7 @@ const Operatives: React.FC = () => {
             if (inviteError) throw inviteError;
 
             if (inviteData.user) {
-                // 2. Create the shell profile immediately
-                const { error: profileError } = await supabaseAdmin
+                await supabaseAdmin
                     .from('profiles')
                     .upsert({
                         id: inviteData.user.id,
@@ -115,11 +128,9 @@ const Operatives: React.FC = () => {
                         current_task: 'Awaiting Onboarding',
                         updated_at: new Date().toISOString()
                     });
-
-                if (profileError) throw profileError;
             }
 
-            toast.success(`Onboarding link transmitted to ${newName}`, { id: loadId });
+            toast.success(`Invitation transmitted to ${newName}`, { id: loadId });
             setShowAddModal(false);
             setNewName('');
             setNewEmail('');
@@ -132,7 +143,7 @@ const Operatives: React.FC = () => {
     };
 
     const handleRoleToggle = async (userId: string, currentRole: Profile['role']) => {
-        const newRole = currentRole === 'admin' ? 'user' : 'admin';
+        const newRole = (currentRole === 'admin' ? 'user' : 'admin') as Profile['role'];
         
         if (isSupabaseConfigured() && supabase) {
             const { error } = await supabase
@@ -146,15 +157,16 @@ const Operatives: React.FC = () => {
             }
         }
         
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
-        toast.success(`Operative role changed to ${newRole.toUpperCase()}`);
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+        toast.success(`Operative ${newRole === 'admin' ? 'Promoted to ADMIN' : 'Demoted to USER'}`);
     };
 
     const filteredUsers = users.filter(u => {
         const query = searchTerm.toLowerCase();
-        const matchesSearch = u.fullName.toLowerCase().includes(query) || 
-                             u.id.toLowerCase().includes(query) ||
-                             (u.email && u.email.toLowerCase().includes(query));
+        const matchesSearch = 
+            (u.fullName?.toLowerCase() || "").includes(query) || 
+            (u.id?.toLowerCase() || "").includes(query) ||
+            (u.email?.toLowerCase() || "").includes(query);
         const matchesRole = roleFilter === 'all' || u.role === roleFilter;
         return matchesSearch && matchesRole;
     });
@@ -167,7 +179,7 @@ const Operatives: React.FC = () => {
                         <Users className="text-indigo-500" size={32} />
                         OPERATIVE <span className="text-indigo-500">CLUSTER</span>
                     </h1>
-                    <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Personnel Real-time Status & Onboarding</p>
+                    <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Personnel Management & Onboarding</p>
                 </div>
                 <div className="flex gap-3">
                     <button 
@@ -177,54 +189,32 @@ const Operatives: React.FC = () => {
                     >
                         <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
                     </button>
-                    {isAdminAvailable() && (
-                        <button 
-                            onClick={() => setShowAddModal(true)}
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20"
-                        >
-                            <SendHorizontal size={18} /> Invite Operative
-                        </button>
-                    )}
+                    <button 
+                        onClick={() => setShowAddModal(true)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20"
+                    >
+                        <UserPlus size={18} /> Invite Operative
+                    </button>
                 </div>
             </header>
 
-            {/* Status Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-xl">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Personnel</p>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">{users.length}</h3>
-                    <Users className="absolute top-4 right-4 text-slate-800" size={40} />
+            {!isAdminAvailable() && (
+                <div className="mb-6 bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl flex items-center gap-4 text-indigo-400">
+                    <AlertCircle size={20} />
+                    <div>
+                        <p className="text-xs font-black uppercase tracking-widest">Simulation Mode Active</p>
+                        <p className="text-[10px] opacity-70">Admin Service Role Key is missing. Actions will be simulated in the database without sending real invitation emails.</p>
+                    </div>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-xl">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Active Now</p>
-                    <h3 className="text-3xl font-black text-green-500 tracking-tighter">
-                        {users.filter(u => getStatusIndicator(u.lastActive).isOnline).length}
-                    </h3>
-                    <div className="absolute top-4 right-4 text-green-500/20 animate-pulse"><Circle fill="currentColor" size={40} /></div>
-                </div>
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-xl">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Pending Onboarding</p>
-                    <h3 className="text-3xl font-black text-amber-500 tracking-tighter">
-                        {users.filter(u => !u.lastActive).length}
-                    </h3>
-                    <Mail className="absolute top-4 right-4 text-slate-800" size={40} />
-                </div>
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-xl">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Cluster Health</p>
-                    <h3 className="text-lg font-bold text-green-500 tracking-tighter uppercase flex items-center gap-2 mt-2">
-                        <Zap size={18} className="text-kvi-gold animate-pulse" /> Nominal
-                    </h3>
-                </div>
-            </div>
+            )}
 
-            {/* Filters & Table */}
             <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
                 <div className="px-8 py-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900/50">
                     <div className="relative w-full md:w-96">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                         <input 
                             type="text"
-                            placeholder="Search Name, UUID, Task..."
+                            placeholder="Filter by Name, ID, or Email..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-12 pr-4 py-3 text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-300 transition-all font-mono"
@@ -250,8 +240,8 @@ const Operatives: React.FC = () => {
                         <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
                             <tr>
                                 <th className="px-8 py-5">Personnel</th>
-                                <th className="px-8 py-5">Connectivity</th>
-                                <th className="px-8 py-5">Current Operation</th>
+                                <th className="px-8 py-5 text-center">Clearance</th>
+                                <th className="px-8 py-5">Status</th>
                                 <th className="px-8 py-5">Last Handshake</th>
                                 <th className="px-8 py-5 text-right">Access Control</th>
                             </tr>
@@ -260,10 +250,8 @@ const Operatives: React.FC = () => {
                             {isLoading ? (
                                 <tr>
                                     <td colSpan={5} className="px-8 py-20 text-center">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <RefreshCw className="text-indigo-500 animate-spin" size={40} />
-                                            <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-600">Querying identity cluster...</p>
-                                        </div>
+                                        <RefreshCw className="text-indigo-500 animate-spin mx-auto mb-4" size={40} />
+                                        <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-600">Querying identity cluster...</p>
                                     </td>
                                 </tr>
                             ) : filteredUsers.length > 0 ? filteredUsers.map((user) => {
@@ -273,52 +261,40 @@ const Operatives: React.FC = () => {
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-4">
                                                 <div className="relative">
-                                                    <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-400 font-black border border-slate-700 shadow-inner group-hover:border-indigo-500/50 transition-all">
+                                                    <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-400 font-black border border-slate-700">
                                                         {user.fullName?.charAt(0) || '?'}
                                                     </div>
-                                                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${status.color} ${status.isOnline ? 'animate-pulse' : ''}`}></div>
+                                                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${status.color}`}></div>
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-bold text-white tracking-tight">{user.fullName}</p>
-                                                    <p className="text-[10px] text-slate-500 font-mono">{user.email || 'no-mail'}</p>
-                                                    <div className={`mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
-                                                        user.role === 'admin' 
-                                                        ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
-                                                        : 'bg-slate-800 border-slate-700 text-slate-400'
-                                                    }`}>
-                                                        {user.role}
-                                                    </div>
+                                                    <p className="text-[10px] text-slate-500 font-mono truncate max-w-[150px]">{user.email || user.id}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex flex-col gap-1">
-                                                <span className={`text-[10px] font-black uppercase tracking-widest ${status.isOnline ? 'text-green-500' : 'text-slate-500'}`}>
-                                                    {status.label}
-                                                </span>
-                                                <span className="text-[9px] text-slate-600 font-mono uppercase tracking-tighter">Session Active</span>
+                                        <td className="px-8 py-6 text-center">
+                                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                                                user.role === 'admin' 
+                                                ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
+                                                : 'bg-slate-800 border-slate-700 text-slate-400'
+                                            }`}>
+                                                {user.role}
                                             </div>
                                         </td>
                                         <td className="px-8 py-6">
-                                            <div className="flex items-center gap-2">
-                                                <Zap size={14} className={status.isOnline ? "text-indigo-400" : "text-slate-700"} />
-                                                <span className={`text-xs font-bold ${status.isOnline ? 'text-indigo-200' : 'text-slate-500'}`}>
-                                                    {user.currentTask}
-                                                </span>
-                                            </div>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest ${status.isOnline ? 'text-green-500' : 'text-slate-500'}`}>
+                                                {status.label}
+                                            </span>
                                         </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
-                                                <Clock size={14} className="text-slate-600" />
-                                                {formatLastActive(user.lastActive)}
-                                            </div>
+                                        <td className="px-8 py-6 font-mono text-xs text-slate-500">
+                                            {user.lastActive ? new Date(user.lastActive).toLocaleString() : 'Pending'}
                                         </td>
                                         <td className="px-8 py-6 text-right">
                                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button 
                                                     onClick={() => handleRoleToggle(user.id, user.role)}
                                                     className="p-3 bg-slate-800 hover:bg-indigo-600 text-slate-400 hover:text-white rounded-2xl transition-all border border-slate-700"
-                                                    title="Modify Clearance Level"
+                                                    title={user.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
                                                 >
                                                     <UserCog size={18} />
                                                 </button>
@@ -332,7 +308,7 @@ const Operatives: React.FC = () => {
                             }) : (
                                 <tr>
                                     <td colSpan={5} className="px-8 py-20 text-center text-slate-600 italic">
-                                        No operatives matching "{searchTerm}" found in cluster.
+                                        No operatives found matching "{searchTerm}".
                                     </td>
                                 </tr>
                             )}
@@ -341,7 +317,6 @@ const Operatives: React.FC = () => {
                 </div>
             </div>
 
-            {/* Invite Operative Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
                     <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
@@ -349,75 +324,51 @@ const Operatives: React.FC = () => {
                             <button onClick={() => setShowAddModal(false)} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-xl transition-colors">
                                 <X size={20} />
                             </button>
-                            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md border border-white/20">
-                                <Mail size={32} className="text-white" />
-                            </div>
                             <h2 className="text-2xl font-black tracking-tighter uppercase">Invite Operative</h2>
-                            <p className="text-indigo-100 text-xs font-bold tracking-widest mt-2 uppercase opacity-80">Onboarding Dispatch Protocol</p>
+                            <p className="text-indigo-100 text-xs font-bold tracking-widest mt-2 uppercase opacity-80">Credentialing Dispatch Protocol</p>
                         </div>
 
                         <form onSubmit={handleInviteOperative} className="p-10 space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="col-span-2">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Full Legal Name</label>
-                                    <div className="relative">
-                                        <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                                        <input 
-                                            type="text" 
-                                            required
-                                            value={newName}
-                                            onChange={(e) => setNewName(e.target.value)}
-                                            placeholder="Operative Name"
-                                            className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-4 py-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Enterprise Email</label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                                        <input 
-                                            type="email" 
-                                            required
-                                            value={newEmail}
-                                            onChange={(e) => setNewEmail(e.target.value)}
-                                            placeholder="email@saric.co.zm"
-                                            className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-4 py-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Clearance Level</label>
-                                    <select 
-                                        value={newRole}
-                                        onChange={(e) => setNewRole(e.target.value as 'admin' | 'user')}
-                                        className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-black uppercase text-[10px] tracking-widest appearance-none"
-                                    >
-                                        <option value="user">Field Operative</option>
-                                        <option value="admin">Command Admin</option>
-                                    </select>
-                                </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Full Name</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    placeholder="Operative Name"
+                                    className="w-full bg-slate-950 border border-slate-800 text-white px-6 py-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
                             </div>
-
-                            <div className="pt-4 space-y-4">
-                                <div className="flex items-start gap-3 p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl">
-                                    <ShieldAlert size={18} className="text-indigo-500 shrink-0 mt-0.5" />
-                                    <p className="text-[9px] font-bold text-indigo-400 uppercase leading-relaxed tracking-wider">
-                                        The invited user will receive a secure email. Upon clicking the link, they will be redirected to the dashboard to set their credentials.
-                                    </p>
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-500 flex items-center justify-center gap-3 transition-all shadow-xl shadow-indigo-600/20 active:scale-95 disabled:opacity-50"
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Enterprise Email</label>
+                                <input 
+                                    type="email" 
+                                    required
+                                    value={newEmail}
+                                    onChange={(e) => setNewEmail(e.target.value)}
+                                    placeholder="email@saric.co.zm"
+                                    className="w-full bg-slate-950 border border-slate-800 text-white px-6 py-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Clearance Level</label>
+                                <select 
+                                    value={newRole}
+                                    onChange={(e) => setNewRole(e.target.value as 'admin' | 'user')}
+                                    className="w-full bg-slate-950 border border-slate-800 text-white px-6 py-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-bold text-xs"
                                 >
-                                    {isSubmitting ? (
-                                        <RefreshCw className="animate-spin" />
-                                    ) : (
-                                        <><SendHorizontal size={24} /> Dispatch Invitation</>
-                                    )}
-                                </button>
+                                    <option value="user">Field Operative (User)</option>
+                                    <option value="admin">Command Admin</option>
+                                </select>
                             </div>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-500 flex items-center justify-center gap-3 transition-all"
+                            >
+                                {isSubmitting ? <RefreshCw className="animate-spin" /> : <><SendHorizontal size={20} /> Dispatch Invitation</>}
+                            </button>
                         </form>
                     </div>
                 </div>
