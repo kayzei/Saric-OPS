@@ -1,7 +1,9 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Asset, AssetStatus } from '../types';
 import { INITIAL_ASSETS } from '../constants';
+import { dbService } from '../services/dbService';
 import toast from 'react-hot-toast';
 
 const mapDbAsset = (d: any): Asset => ({
@@ -9,8 +11,8 @@ const mapDbAsset = (d: any): Asset => ({
   name: d.name,
   category: d.category,
   driver: d.driver_name,
-  status: d.status as AssetStatus,
-  location: { lat: d.lat, lng: d.lng },
+  status: (d.status as AssetStatus) || AssetStatus.IDLE,
+  location: { lat: d.lat || 0, lng: d.lng || 0 },
   locationName: d.location_name,
   destination: { lat: d.dest_lat || 0, lng: d.dest_lng || 0 },
   cargoType: d.cargo_type,
@@ -24,97 +26,64 @@ const mapDbAsset = (d: any): Asset => ({
 export const useFleetData = (isAuthenticated: boolean) => {
   const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSimulationMode, setIsSimulationMode] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!isSupabaseConfigured() || !supabase || !isAuthenticated) {
-        setIsSimulationMode(true);
-        setAssets(INITIAL_ASSETS);
-        return;
-    }
+    if (!isSupabaseConfigured() || !supabase || !isAuthenticated) return;
     
-    setIsLoading(true);
     try {
       const { data, error } = await supabase.from('assets').select('*');
       if (error) throw error;
       
       if (data && data.length > 0) {
         setAssets(data.map(mapDbAsset));
-        setIsSimulationMode(false);
-      } else {
-        setAssets(INITIAL_ASSETS);
       }
     } catch (err: any) {
-      if (err.message?.includes('fetch')) {
-        console.warn("Vanguard Hub Unreachable: Switching to local simulation.");
-      }
-      setIsSimulationMode(true);
-      setAssets(INITIAL_ASSETS);
-    } finally {
-      setIsLoading(false);
+      console.warn("Fleet telemetry sync deferred.");
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-
     fetchData();
     
-    if (isSupabaseConfigured() && supabase && !isSimulationMode) {
-      try {
-          const channel = supabase
-            .channel('live-fleet-updates')
-            .on(
-              'postgres_changes', 
-              { event: '*', table: 'assets', schema: 'public' }, 
-              (payload) => {
-                if (payload.eventType === 'UPDATE') {
-                  setAssets(current => current.map(asset => 
-                    asset.id === payload.new.id ? mapDbAsset(payload.new) : asset
-                  ));
-                } else if (payload.eventType === 'INSERT') {
-                  setAssets(current => [...current, mapDbAsset(payload.new)]);
-                } else if (payload.eventType === 'DELETE') {
-                  setAssets(current => current.filter(asset => asset.id !== payload.old.id));
-                }
+    // Real-time Telemetry Subscription
+    if (supabase) {
+        const channel = supabase.channel('fleet-telemetry')
+          .on('postgres_changes', { 
+            event: '*', 
+            table: 'assets', 
+            schema: 'public' 
+          }, (payload) => {
+            if (payload.eventType === 'INSERT') {
+              setAssets(prev => [...prev, mapDbAsset(payload.new)]);
+            } else if (payload.eventType === 'UPDATE') {
+              setAssets(prev => prev.map(a => a.id === payload.new.id ? mapDbAsset(payload.new) : a));
+              
+              // Alert on critical events like breakdowns
+              if (payload.new.status === 'BREAKDOWN' && payload.old.status !== 'BREAKDOWN') {
+                toast.error(`ALERT: Unit ${payload.new.id} reported a breakdown at ${payload.new.location_name}`, { duration: 6000 });
               }
-            )
-            .subscribe();
+            } else if (payload.eventType === 'DELETE') {
+              setAssets(prev => prev.filter(a => a.id !== payload.old.id));
+            }
+          })
+          .subscribe();
 
-          return () => {
-            supabase.removeChannel(channel);
-          };
-      } catch (e) {
-          console.warn("Realtime sync unavailable.");
-      }
+        return () => {
+          supabase.removeChannel(channel);
+        };
     }
-  }, [isAuthenticated, fetchData, isSimulationMode]);
+  }, [isAuthenticated, fetchData]);
 
   const updateAsset = async (updatedAsset: Asset) => {
+    // Optimistic Update
     setAssets(prev => prev.map(a => a.id === updatedAsset.id ? updatedAsset : a));
-    
-    if (isSupabaseConfigured() && supabase && !isSimulationMode) {
-      try {
-          const { error } = await supabase
-            .from('assets')
-            .update({
-              name: updatedAsset.name,
-              status: updatedAsset.status,
-              location_name: updatedAsset.locationName,
-              driver_name: updatedAsset.driver,
-              lat: updatedAsset.location.lat,
-              lng: updatedAsset.location.lng,
-              speed: updatedAsset.speed,
-              fuel_level: updatedAsset.fuelLevel
-            })
-            .eq('id', updatedAsset.id);
-          
-          if (error) throw error;
-      } catch (error: any) {
-        toast.error("Cloud Sync Suspended");
-      }
+    try {
+      await dbService.updateAsset(updatedAsset);
+    } catch (error: any) {
+      toast.error("Telemetry uplink failure: Queued.");
     }
   };
 
-  return { assets, updateAsset, isLoading, isSimulationMode };
+  return { assets, updateAsset, isLoading };
 };

@@ -1,18 +1,16 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Asset, MaintenanceRecord } from '../types';
 
-// Safety check for API Key
-const API_KEY = process.env.API_KEY || "";
+/**
+ * Guideline compliance: The API key must be obtained exclusively from process.env.API_KEY.
+ * Always use the named parameter constructor.
+ */
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const getAi = () => {
-  if (!API_KEY || API_KEY === "undefined") {
-    console.warn("Gemini API Key missing from environment.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey: API_KEY });
-};
-
-// Helper to decode base64 for audio processing
+/**
+ * Manual base64 decoding implementation as required by guidelines.
+ */
 function decode(base64: string) {
   try {
     const binaryString = atob(base64);
@@ -29,14 +27,14 @@ function decode(base64: string) {
 }
 
 export const generateFleetReport = async (assets: Asset[]): Promise<string> => {
-  const ai = getAi();
-  if (!ai) return "AI Intelligence Suite currently offline (Missing Credentials).";
-
   try {
     const dataSummary = assets.map(a => 
       `ID: ${a.id}, Status: ${a.status}, Fuel: ${a.fuelLevel}%, Location: [${a.location.lat}, ${a.location.lng}]`
     ).join('\n');
 
+    /**
+     * Correct usage: Access response.text property directly.
+     */
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are a logistics operations manager assistant. Analyze the following fleet data and provide a concise, strategic summary (max 100 words). Focus on efficiency, potential risks (low fuel, breakdowns), and overall health. Data:\n${dataSummary}`,
@@ -51,9 +49,6 @@ export const generateFleetReport = async (assets: Asset[]): Promise<string> => {
 };
 
 export const generateDriverBriefing = async (driverName: string, asset: Asset): Promise<Uint8Array | null> => {
-  const ai = getAi();
-  if (!ai) return null;
-
   try {
     // 1. Generate text first
     const textResponse = await ai.models.generateContent({
@@ -94,9 +89,6 @@ export const generateDriverBriefing = async (driverName: string, asset: Asset): 
 };
 
 export const analyzeMaintenanceHistory = async (records: MaintenanceRecord[], assets: Asset[]): Promise<string> => {
-  const ai = getAi();
-  if (!ai) return "Maintenance AI Core offline.";
-
   try {
     const history = records.map(r => `Asset: ${r.assetId}, Type: ${r.type}, Cost: ${r.cost}, Date: ${r.date}, Notes: ${r.notes}`).join('\n');
     const fleet = assets.map(a => `ID: ${a.id}, Fuel: ${a.fuelLevel}%, Speed: ${a.speed}`).join('\n');
@@ -117,9 +109,6 @@ export const analyzeMaintenanceHistory = async (records: MaintenanceRecord[], as
 };
 
 export const askAssistant = async (query: string, contextData: string): Promise<string> => {
-  const ai = getAi();
-  if (!ai) return "Vanguard Assistant currently disconnected.";
-
   try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',

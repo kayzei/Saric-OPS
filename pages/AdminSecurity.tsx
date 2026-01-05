@@ -80,22 +80,15 @@ const AdminSecurity: React.FC = () => {
         }
     };
 
-    const handleRoleToggle = async (userId: string, currentRole: string) => {
+    const handleRoleToggle = async (userId: string, currentRole: 'admin' | 'user') => {
         const newRole = currentRole === 'admin' ? 'user' : 'admin';
-        if (isSupabaseConfigured() && supabase) {
-            const { error } = await supabase
-                .from('profiles')
-                .update({ role: newRole })
-                .eq('id', userId);
-            
-            if (error) {
-                toast.error("Role update failed");
-                return;
-            }
+        try {
+            await dbService.updateProfile({ id: userId, role: newRole });
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as 'admin' | 'user' } : u));
+            toast.success(`Identity updated to ${newRole.toUpperCase()}`);
+        } catch (error) {
+            toast.error("Protocol Error: Update queued locally.");
         }
-        
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as 'admin' | 'user' } : u));
-        toast.success(`Identity updated to ${newRole.toUpperCase()}`);
     };
 
     const handleInvite = (e: React.FormEvent) => {

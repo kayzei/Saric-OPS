@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { X, Send, MessageSquare, Star, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { dbService } from '../services/dbService';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -23,20 +22,13 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
     setIsSubmitting(true);
     try {
-      if (isSupabaseConfigured() && supabase) {
-        await supabase.from('feedback').insert({
-          content: feedback,
-          category,
-          rating,
-          created_at: new Date().toISOString()
-        });
-      }
+      await dbService.submitFeedback(feedback, category, rating);
       toast.success("Operational Insight Transmitted", { icon: '🚀' });
       setFeedback('');
       setRating(0);
       onClose();
     } catch (error) {
-      toast.error("Handshake Link Failure");
+      toast.error("Handshake Link Failure: Queued locally.");
     } finally {
       setIsSubmitting(false);
     }
@@ -46,7 +38,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 text-white relative">
-          <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-xl transition-colors">
+          <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-xl transition-colors">
             <X size={20} />
           </button>
           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md border border-white/20">

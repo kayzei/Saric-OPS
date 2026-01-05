@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
-import { User, Bell, Lock, Globe, Save } from 'lucide-react';
+import { User, Bell, Lock, Globe, Save, Building2, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Profile } from '../types';
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  profile: Profile | null;
+}
+
+const Settings: React.FC<SettingsProps> = ({ profile }) => {
   const [activeTab, setActiveTab] = useState('profile');
 
   const handleSave = () => {
     toast.success("Settings saved successfully");
+  };
+
+  const formatLastActive = (dateStr?: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   return (
@@ -59,15 +73,34 @@ const Settings: React.FC = () => {
                        <div className="space-y-4">
                            <div>
                                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                               <input type="text" defaultValue="Admin User" className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+                               <div className="relative">
+                                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                  <input type="text" defaultValue={profile?.fullName || "Admin User"} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+                               </div>
                            </div>
                            <div>
                                <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                               <input type="email" defaultValue="admin@sariclogistics.co.zm" className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+                               <input type="email" defaultValue={profile?.email || "admin@sariclogistics.co.zm"} className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+                           </div>
+                           <div className="grid grid-cols-2 gap-4">
+                               <div>
+                                   <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
+                                   <div className="relative">
+                                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                      <input type="text" defaultValue={profile?.department || "Operations"} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+                                   </div>
+                               </div>
+                               <div>
+                                   <label className="block text-sm font-medium text-slate-700 mb-1">Clearance Role</label>
+                                   <input type="text" defaultValue={profile?.role?.toUpperCase() || "ADMIN"} disabled className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed font-bold" />
+                               </div>
                            </div>
                            <div>
-                               <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
-                               <input type="text" defaultValue="System Administrator" disabled className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed" />
+                               <label className="block text-sm font-medium text-slate-700 mb-1">Last Active Timestamp</label>
+                               <div className="relative">
+                                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                  <input type="text" value={formatLastActive(profile?.lastActive)} disabled className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed font-mono text-xs" />
+                               </div>
                            </div>
                        </div>
                    </div>

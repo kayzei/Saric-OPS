@@ -1,11 +1,11 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, CheckCircle, AlertCircle, QrCode, RefreshCw, ShieldCheck, History, X, User, Plus, Trash2, Printer, Eye, Lock, Database } from 'lucide-react';
 import { INITIAL_INVOICES } from '../constants';
 import { Invoice, AuditEntry, InvoiceItem, ZraTaxType } from '../types';
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { dbService } from '../services/dbService';
 import toast from 'react-hot-toast';
 import InvoiceFilters from '../components/InvoiceFilters';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 const Invoicing: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
@@ -64,7 +64,7 @@ const Invoicing: React.FC = () => {
                       hsCode: item.hs_code,
                       quantity: item.quantity,
                       unitPrice: item.unit_price,
-                      taxType: item.tax_type,
+                      tax_type: item.tax_type,
                       total: item.total
                   })) || [],
                   auditTrail: []
@@ -97,53 +97,38 @@ const Invoicing: React.FC = () => {
       const totalVat = newInvItems.reduce((acc, curr) => acc + (curr.taxType === 'A' ? curr.total * 0.16 : 0), 0);
       const invoiceId = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`;
 
-      if (isSupabaseConfigured() && supabase) {
-          try {
-              const { error: invError } = await supabase.from('invoices').insert({
-                  id: invoiceId,
-                  customer_name: newInvCustomer,
-                  tpin: newInvTpin,
-                  currency: newInvCurrency,
-                  exchange_rate: newInvCurrency === 'USD' ? newInvExchangeRate : null,
-                  net_amount: totalNet,
-                  vat_amount: totalVat,
-                  summary: newInvItems[0].description
-              });
-              if (invError) throw invError;
-
-              const itemsPayload = newInvItems.map(item => ({
-                  invoice_id: invoiceId,
-                  description: item.description,
-                  hs_code: item.hsCode,
-                  quantity: item.quantity,
-                  unit_price: item.unitPrice,
-                  tax_type: item.taxType,
-                  total: item.total
-              }));
-              
-              await supabase.from('invoice_items').insert(itemsPayload);
-              toast.success("Invoice Saved to Database");
-              fetchInvoices();
-              setShowCreateModal(false);
-          } catch (error: any) {
-              toast.error("DB Error: " + error.message);
-          }
+      const loadId = toast.loading("Registering transaction...");
+      try {
+          await dbService.createInvoice({
+              id: invoiceId,
+              customer: newInvCustomer,
+              tpin: newInvTpin,
+              currency: newInvCurrency,
+              exchangeRate: newInvCurrency === 'USD' ? newInvExchangeRate : undefined,
+              amount: totalNet,
+              vat: totalVat,
+              items: newInvItems[0].description
+          }, newInvItems);
+          
+          toast.success("Invoice Queued for Sync", { id: loadId });
+          fetchInvoices();
+          setShowCreateModal(false);
+      } catch (error: any) {
+          toast.error("Process Halted: " + error.message, { id: loadId });
       }
   };
 
   const handleFiscalise = async (id: string) => {
     setProcessingId(id);
     const signature = `ZRA-ESD-${Math.floor(Math.random() * 900000) + 100000}-GEN`;
-    if (isSupabaseConfigured() && supabase) {
-        try {
-            await supabase.from('invoices').update({ status: 'Fiscalised', zra_signature: signature }).eq('id', id);
-            toast.success('Invoice fiscalised', { icon: '🇿🇲' });
-            fetchInvoices();
-        } catch (error: any) {
-             toast.error("Fiscalisation Failed");
-        } finally {
-            setProcessingId(null);
-        }
+    try {
+        await dbService.fiscaliseInvoice(id, signature);
+        toast.success('Invoice queued for ZRA signature', { icon: '🇿🇲' });
+        fetchInvoices();
+    } catch (error: any) {
+         toast.error("Fiscalisation Protocol Error");
+    } finally {
+        setProcessingId(null);
     }
   };
 

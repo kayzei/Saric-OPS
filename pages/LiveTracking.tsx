@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Tooltip as LeafletTooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { Asset, AssetStatus, AssetCategory } from '../types';
-import { Truck, Eye, EyeOff, Layers, Crosshair, Navigation, MapPin, Radio, Brain, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
+import { Truck, Eye, EyeOff, Layers, Crosshair, Navigation, MapPin, Radio, Brain, ShieldAlert, Sparkles, RefreshCw, WifiOff } from 'lucide-react';
 import { INITIAL_GEOFENCES } from '../constants';
 import { askAssistant } from '../services/geminiService';
 import toast from 'react-hot-toast';
@@ -44,6 +45,16 @@ const shuttleIcon = new L.Icon({
 
 const constructionIcon = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+// Icon for no SIM / Radio only
+const noSimIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
@@ -115,6 +126,8 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets, userRole = 'user' }
 
   const getIcon = (asset: Asset) => {
       if (asset.status === AssetStatus.BREAKDOWN) return errorIcon;
+      // In a real app, we'd check the linked profile's noSim status here.
+      // For simulation, let's say SRC-104 has No SIM if flagged.
       if (asset.category === 'Shuttle') return shuttleIcon;
       if (asset.category === 'Construction') return constructionIcon;
       return movingIcon;
@@ -247,10 +260,17 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ assets, userRole = 'user' }
                                 <p className="flex items-center gap-2 text-indigo-600 font-bold">
                                     <MapPin size={12} /> {asset.locationName || 'Unknown Site'}
                                 </p>
+                                
                                 <div className="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div className="h-full bg-indigo-500" style={{width: `${asset.fuelLevel}%`}}></div>
                                 </div>
                                 <p className="text-[9px] text-slate-400 font-mono mt-1 uppercase tracking-tighter">Fuel Energy: {Math.round(asset.fuelLevel)}%</p>
+                                
+                                {/* Radio Only Badge in Popup */}
+                                <div className="mt-3 bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-2">
+                                    <WifiOff size={14} className="text-amber-600" />
+                                    <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">Radio Protocol Enabled</span>
+                                </div>
                             </div>
                         </div>
                     </Popup>

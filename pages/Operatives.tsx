@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Search, Shield, UserCog, Lock, Fingerprint, Activity, ShieldCheck, UserPlus, RefreshCw, Filter, Trash2, Mail, Calendar, Database, X, Sparkles, Key, CheckCircle2, ShieldAlert, Circle, Clock, Zap, SendHorizontal } from 'lucide-react';
-import { supabase, supabaseAdmin, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin, isSupabaseConfigured, isAdminAvailable } from '../lib/supabaseClient';
 import toast from 'react-hot-toast';
 import { Profile } from '../types';
 
+interface OperativeProfile extends Profile {
+    created_at?: string;
+}
+
 const Operatives: React.FC = () => {
-    const [users, setUsers] = useState<Profile[]>([]);
+    const [users, setUsers] = useState<OperativeProfile[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
@@ -82,8 +86,8 @@ const Operatives: React.FC = () => {
 
     const handleInviteOperative = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isSupabaseConfigured() || !supabaseAdmin) {
-            toast.error("Cloud infrastructure link missing.");
+        if (!isAdminAvailable() || !supabaseAdmin) {
+            toast.error("Cloud infrastructure administrative link missing. Set VITE_SUPABASE_SERVICE_ROLE_KEY.");
             return;
         }
 
@@ -92,7 +96,6 @@ const Operatives: React.FC = () => {
 
         try {
             // 1. Dispatch Invitation Email via Supabase Auth Admin
-            // Set redirectTo to the reset-password page so they set credentials first
             const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(newEmail, {
                 redirectTo: `${window.location.origin}/#/reset-password`,
                 data: { full_name: newName, role: newRole }
@@ -128,7 +131,7 @@ const Operatives: React.FC = () => {
         }
     };
 
-    const handleRoleToggle = async (userId: string, currentRole: 'admin' | 'user') => {
+    const handleRoleToggle = async (userId: string, currentRole: Profile['role']) => {
         const newRole = currentRole === 'admin' ? 'user' : 'admin';
         
         if (isSupabaseConfigured() && supabase) {
@@ -143,14 +146,15 @@ const Operatives: React.FC = () => {
             }
         }
         
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
         toast.success(`Operative role changed to ${newRole.toUpperCase()}`);
     };
 
     const filteredUsers = users.filter(u => {
-        const matchesSearch = u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             u.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase()));
+        const query = searchTerm.toLowerCase();
+        const matchesSearch = u.fullName.toLowerCase().includes(query) || 
+                             u.id.toLowerCase().includes(query) ||
+                             (u.email && u.email.toLowerCase().includes(query));
         const matchesRole = roleFilter === 'all' || u.role === roleFilter;
         return matchesSearch && matchesRole;
     });
@@ -173,12 +177,14 @@ const Operatives: React.FC = () => {
                     >
                         <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
                     </button>
-                    <button 
-                        onClick={() => setShowAddModal(true)}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20"
-                    >
-                        <SendHorizontal size={18} /> Invite Operative
-                    </button>
+                    {isAdminAvailable() && (
+                        <button 
+                            onClick={() => setShowAddModal(true)}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20"
+                        >
+                            <SendHorizontal size={18} /> Invite Operative
+                        </button>
+                    )}
                 </div>
             </header>
 
@@ -268,7 +274,7 @@ const Operatives: React.FC = () => {
                                             <div className="flex items-center gap-4">
                                                 <div className="relative">
                                                     <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-400 font-black border border-slate-700 shadow-inner group-hover:border-indigo-500/50 transition-all">
-                                                        {user.fullName.charAt(0)}
+                                                        {user.fullName?.charAt(0) || '?'}
                                                     </div>
                                                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${status.color} ${status.isOnline ? 'animate-pulse' : ''}`}></div>
                                                 </div>
